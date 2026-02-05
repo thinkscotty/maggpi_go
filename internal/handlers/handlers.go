@@ -17,35 +17,59 @@ import (
 
 // Handlers contains all HTTP handlers
 type Handlers struct {
-	db        *database.DB
-	scheduler *scheduler.Scheduler
-	templates *template.Template
+	db          *database.DB
+	scheduler   *scheduler.Scheduler
+	templates   map[string]*template.Template
+	templateDir string
 }
 
 // New creates a new Handlers instance
 func New(db *database.DB, sched *scheduler.Scheduler, templatesDir string) (*Handlers, error) {
-	// Parse all templates
-	tmpl, err := template.New("").Funcs(template.FuncMap{
+	h := &Handlers{
+		db:          db,
+		scheduler:   sched,
+		templates:   make(map[string]*template.Template),
+		templateDir: templatesDir,
+	}
+
+	// Template functions
+	funcMap := template.FuncMap{
 		"json": func(v interface{}) template.JS {
 			b, _ := json.Marshal(v)
 			return template.JS(b)
 		},
-	}).ParseGlob(filepath.Join(templatesDir, "*.html"))
-	if err != nil {
-		return nil, err
 	}
 
-	return &Handlers{
-		db:        db,
-		scheduler: sched,
-		templates: tmpl,
-	}, nil
+	// Load each page template with base.html
+	// Each page needs its own template set so "content" definitions don't overwrite each other
+	pages := []string{"dashboard.html", "topics.html", "settings.html"}
+	basePath := filepath.Join(templatesDir, "base.html")
+
+	for _, page := range pages {
+		pagePath := filepath.Join(templatesDir, page)
+		tmpl, err := template.New("").Funcs(funcMap).ParseFiles(basePath, pagePath)
+		if err != nil {
+			return nil, err
+		}
+		h.templates[page] = tmpl
+	}
+
+	return h, nil
 }
 
 // render renders a template with data
 func (h *Handlers) render(w http.ResponseWriter, tmpl string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, tmpl, data); err != nil {
+
+	t, ok := h.templates[tmpl]
+	if !ok {
+		log.Printf("Template not found: %s", tmpl)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Execute the "base" template which will include the page's "content" block
+	if err := t.ExecuteTemplate(w, "base", data); err != nil {
 		log.Printf("Template error: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}

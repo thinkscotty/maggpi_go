@@ -24,24 +24,176 @@ MaggPi is a lightweight, self-hosted news aggregator that uses Google's Gemini A
 
 ## Quick Start
 
-### Option 1: Download Pre-built Binary (Recommended for Pi)
+### Option 1: Build on Mac and Publish as GitHub Release (Recommended)
 
-**On Raspberry Pi:**
+This option builds the binary on your Mac, publishes it to GitHub as a release, then downloads it on the Pi.
 
-1. Download the latest release for your platform from the [Releases](https://github.com/thinkscotty/maggpi_go/releases) page
+#### Step 1A: Build the Binary on Your Mac
 
-2. Extract and run:
+**On your Mac (development machine):**
+
+1. **Install Go** (if not already installed):
    ```bash
-   tar -xzf maggpi-linux-arm64.tar.gz
+   # Check if Go is installed
+   go version
+
+   # If not installed, download from https://go.dev/dl/
+   # Or install via Homebrew:
+   brew install go
+   ```
+
+2. **Clone the repository**:
+   ```bash
+   cd ~/code_projects  # Or your preferred directory
+   git clone https://github.com/thinkscotty/maggpi_go.git
+   cd maggpi_go
+   ```
+
+3. **Download dependencies**:
+   ```bash
+   go mod tidy
+   ```
+
+4. **Build the binary for Raspberry Pi** (ARM64):
+   ```bash
+   GOOS=linux GOARCH=arm64 go build -o maggpi-linux-arm64 ./cmd/maggpi
+   ```
+
+   This creates a file called `maggpi-linux-arm64` in your current directory.
+
+5. **Verify the binary was created**:
+   ```bash
+   ls -lh maggpi-linux-arm64
+   ```
+
+   You should see a file around 30-35 MB.
+
+#### Step 1B: Create a Release Package
+
+**On your Mac:**
+
+1. **Create a release directory**:
+   ```bash
+   mkdir -p release/maggpi
+   ```
+
+2. **Copy files to release directory**:
+   ```bash
+   # Copy the binary
+   cp maggpi-linux-arm64 release/maggpi/maggpi
+
+   # Copy the web directory (templates and static files)
+   cp -r web release/maggpi/
+
+   # Copy README for reference
+   cp README.md release/maggpi/
+   ```
+
+3. **Create a compressed archive**:
+   ```bash
+   cd release
+   tar -czf maggpi-v1.0.0-linux-arm64.tar.gz maggpi/
+   cd ..
+   ```
+
+4. **Verify the archive**:
+   ```bash
+   ls -lh release/maggpi-v1.0.0-linux-arm64.tar.gz
+   ```
+
+#### Step 1C: Publish to GitHub as a Release
+
+**On your Mac:**
+
+1. **Install GitHub CLI** (if not already installed):
+   ```bash
+   brew install gh
+   ```
+
+2. **Authenticate with GitHub** (first time only):
+   ```bash
+   gh auth login
+   ```
+
+   Follow the prompts:
+   - Choose "GitHub.com"
+   - Choose "HTTPS"
+   - Authenticate via web browser
+
+3. **Tag your code** (if not already tagged):
+   ```bash
+   git tag -a v1.0.0 -m "Initial release of MaggPi"
+   git push origin v1.0.0
+   ```
+
+4. **Create a GitHub release with the binary**:
+   ```bash
+   gh release create v1.0.0 \
+     release/maggpi-v1.0.0-linux-arm64.tar.gz \
+     --title "MaggPi v1.0.0" \
+     --notes "Initial release of MaggPi - AI-Powered News Aggregator
+
+   ## Features
+   - AI source discovery via Gemini API
+   - Smart story summarization
+   - Web UI with dashboard, topics, and settings
+   - JSON API for external clients
+   - Designed for Raspberry Pi 3B+
+
+   ## Installation
+   1. Download maggpi-v1.0.0-linux-arm64.tar.gz
+   2. Extract on your Raspberry Pi
+   3. Run ./maggpi
+   4. Open http://192.168.0.101:7979 in your browser
+   5. Configure your Gemini API key in Settings
+
+   See README.md for full documentation."
+   ```
+
+5. **Verify the release**:
+   - Visit: https://github.com/thinkscotty/maggpi_go/releases
+   - You should see v1.0.0 with the attached binary file
+
+#### Step 1D: Download and Run on Raspberry Pi
+
+**On your Raspberry Pi:**
+
+1. **Download the release**:
+   ```bash
+   cd ~
+   wget https://github.com/thinkscotty/maggpi_go/releases/download/v1.0.0/maggpi-v1.0.0-linux-arm64.tar.gz
+   ```
+
+2. **Extract the archive**:
+   ```bash
+   tar -xzf maggpi-v1.0.0-linux-arm64.tar.gz
    cd maggpi
+   ```
+
+3. **Make the binary executable**:
+   ```bash
+   chmod +x maggpi
+   ```
+
+4. **Run the application**:
+   ```bash
    ./maggpi
    ```
 
-3. Open `http://192.168.0.101:7979` in your browser (from any device on the network)
+5. **Open in your browser** (from any device on the network):
+   - Navigate to: `http://192.168.0.101:7979`
 
-4. Go to **Settings** and enter your Gemini API key
+6. **Configure the application**:
+   - Click **Settings** in the navigation
+   - Enter your **Gemini API Key** (get one at https://aistudio.google.com/apikey)
+   - Adjust refresh intervals and AI instructions as desired
+   - Click **Save Settings**
 
-### Option 2: Build from Source on Pi
+The application will start discovering sources and fetching stories for the default topics.
+
+---
+
+### Option 2: Build Directly on Raspberry Pi
 
 **On Raspberry Pi:**
 
@@ -59,61 +211,59 @@ go version
 
 #### Build Steps
 
-1. Clone the repository:
+1. **Clone the repository**:
    ```bash
+   cd ~
    git clone https://github.com/thinkscotty/maggpi_go.git
    cd maggpi_go
    ```
 
-2. Download dependencies:
+2. **Download dependencies**:
    ```bash
    go mod tidy
    ```
 
-3. Build the application:
+3. **Build the application**:
    ```bash
    go build -o bin/maggpi ./cmd/maggpi
    ```
 
-4. Run the application:
+   *Note: Building on the Pi may take 5-10 minutes.*
+
+4. **Run the application**:
    ```bash
    ./bin/maggpi
    ```
 
-### Option 3: Cross-Compile on Development Machine
+5. **Configure** (same as Option 1, step 6 above)
 
-**On your development machine (Mac/Linux/Windows):**
+---
 
-1. Clone the repository:
+### Option 3: Quick Transfer via SCP (No GitHub Release)
+
+**On your Mac:**
+
+1. **Build the binary** (follow Option 1, Step 1A above)
+
+2. **Transfer to Pi**:
    ```bash
-   git clone https://github.com/thinkscotty/maggpi_go.git
-   cd maggpi_go
-   ```
+   # Create directory on Pi
+   ssh scotty@192.168.0.101 "mkdir -p ~/maggpi"
 
-2. Build for Raspberry Pi:
-   ```bash
-   # Download dependencies
-   go mod tidy
+   # Transfer binary
+   scp maggpi-linux-arm64 scotty@192.168.0.101:~/maggpi/maggpi
 
-   # Build for Pi (ARM64)
-   GOOS=linux GOARCH=arm64 go build -o bin/maggpi-linux-arm64 ./cmd/maggpi
-   # Or use the Makefile
-   make build-pi
-   ```
-
-3. Transfer to Pi:
-   ```bash
-   scp bin/maggpi-linux-arm64 scotty@192.168.0.101:~/maggpi
+   # Transfer web directory
    scp -r web scotty@192.168.0.101:~/maggpi/
    ```
 
 **On Raspberry Pi:**
 
-4. Run the application:
+3. **Run the application**:
    ```bash
    cd ~/maggpi
-   chmod +x maggpi-linux-arm64
-   ./maggpi-linux-arm64
+   chmod +x maggpi
+   ./maggpi
    ```
 
 ## Deployment on Raspberry Pi
