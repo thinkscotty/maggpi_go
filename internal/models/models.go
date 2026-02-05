@@ -47,6 +47,8 @@ type Settings struct {
 	SecondaryColor           string `json:"secondary_color"`
 	DarkMode                 bool   `json:"dark_mode"`
 	GeminiAPIKey             string `json:"gemini_api_key"`
+	DashboardTitle           string `json:"dashboard_title"`
+	DashboardSubtitle        string `json:"dashboard_subtitle"`
 }
 
 // DefaultSettings returns the default application settings
@@ -59,6 +61,8 @@ func DefaultSettings() Settings {
 		PrimaryColor:            "#2563eb",
 		SecondaryColor:          "#1e40af",
 		DarkMode:                false,
+		DashboardTitle:          "Dashboard",
+		DashboardSubtitle:       "Your personalized news feed",
 	}
 }
 

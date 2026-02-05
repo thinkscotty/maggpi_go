@@ -3,8 +3,8 @@
 {{define "content"}}
 <div class="dashboard">
     <header class="page-header">
-        <h1>Dashboard</h1>
-        <p class="subtitle">Your personalized news feed</p>
+        <h1>{{if .Settings.DashboardTitle}}{{.Settings.DashboardTitle}}{{else}}Dashboard{{end}}</h1>
+        <p class="subtitle">{{if .Settings.DashboardSubtitle}}{{.Settings.DashboardSubtitle}}{{else}}Your personalized news feed{{end}}</p>
     </header>
 
     {{if not .Topics}}

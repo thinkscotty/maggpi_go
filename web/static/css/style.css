@@ -45,6 +45,18 @@ body {
     font-weight: 700;
     color: white;
     text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    height: 64px;
+    width: auto;
+    transition: transform 0.2s;
+}
+
+.logo:hover {
+    transform: scale(1.05);
 }
 
 .nav-links {

@@ -94,7 +94,9 @@ func (db *DB) migrate() error {
 		primary_color TEXT DEFAULT '#2563eb',
 		secondary_color TEXT DEFAULT '#1e40af',
 		dark_mode BOOLEAN DEFAULT FALSE,
-		gemini_api_key TEXT
+		gemini_api_key TEXT,
+		dashboard_title TEXT DEFAULT 'Dashboard',
+		dashboard_subtitle TEXT DEFAULT 'Your personalized news feed'
 	);
 
 	CREATE TABLE IF NOT EXISTS refresh_status (
@@ -111,8 +113,22 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_stories_created_at ON stories(created_at DESC);
 	`
 
-	_, err := db.conn.Exec(schema)
-	return err
+	if _, err := db.conn.Exec(schema); err != nil {
+		return err
+	}
+
+	// Add new columns if they don't exist (for existing databases)
+	migrations := []string{
+		`ALTER TABLE settings ADD COLUMN dashboard_title TEXT DEFAULT 'Dashboard'`,
+		`ALTER TABLE settings ADD COLUMN dashboard_subtitle TEXT DEFAULT 'Your personalized news feed'`,
+	}
+
+	for _, migration := range migrations {
+		// Ignore errors for columns that already exist
+		db.conn.Exec(migration)
+	}
+
+	return nil
 }
 
 // Topic operations
@@ -335,24 +351,28 @@ func (db *DB) DeleteOldStories(topicID int64, keepCount int) error {
 // GetSettings returns the application settings
 func (db *DB) GetSettings() (*models.Settings, error) {
 	var s models.Settings
-	var sourcingPrompt, summarizingPrompt, apiKey sql.NullString
+	var sourcingPrompt, summarizingPrompt, apiKey, dashTitle, dashSubtitle sql.NullString
 
 	err := db.conn.QueryRow(`
 		SELECT id, refresh_interval_minutes, stories_per_topic, global_sourcing_prompt,
-		       global_summarizing_prompt, primary_color, secondary_color, dark_mode, gemini_api_key
+		       global_summarizing_prompt, primary_color, secondary_color, dark_mode, gemini_api_key,
+		       dashboard_title, dashboard_subtitle
 		FROM settings WHERE id = 1
 	`).Scan(&s.ID, &s.RefreshIntervalMinutes, &s.StoriesPerTopic, &sourcingPrompt,
-		&summarizingPrompt, &s.PrimaryColor, &s.SecondaryColor, &s.DarkMode, &apiKey)
+		&summarizingPrompt, &s.PrimaryColor, &s.SecondaryColor, &s.DarkMode, &apiKey,
+		&dashTitle, &dashSubtitle)
 
 	if err == sql.ErrNoRows {
 		// Insert default settings
 		defaults := models.DefaultSettings()
 		_, err = db.conn.Exec(`
 			INSERT INTO settings (id, refresh_interval_minutes, stories_per_topic, global_sourcing_prompt,
-			                      global_summarizing_prompt, primary_color, secondary_color, dark_mode)
-			VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+			                      global_summarizing_prompt, primary_color, secondary_color, dark_mode,
+			                      dashboard_title, dashboard_subtitle)
+			VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, defaults.RefreshIntervalMinutes, defaults.StoriesPerTopic, defaults.GlobalSourcingPrompt,
-			defaults.GlobalSummarizingPrompt, defaults.PrimaryColor, defaults.SecondaryColor, defaults.DarkMode)
+			defaults.GlobalSummarizingPrompt, defaults.PrimaryColor, defaults.SecondaryColor, defaults.DarkMode,
+			defaults.DashboardTitle, defaults.DashboardSubtitle)
 		if err != nil {
 			return nil, err
 		}
@@ -371,6 +391,12 @@ func (db *DB) GetSettings() (*models.Settings, error) {
 	if apiKey.Valid {
 		s.GeminiAPIKey = apiKey.String
 	}
+	if dashTitle.Valid {
+		s.DashboardTitle = dashTitle.String
+	}
+	if dashSubtitle.Valid {
+		s.DashboardSubtitle = dashSubtitle.String
+	}
 
 	return &s, nil
 }
@@ -386,10 +412,13 @@ func (db *DB) UpdateSettings(s *models.Settings) error {
 			primary_color = ?,
 			secondary_color = ?,
 			dark_mode = ?,
-			gemini_api_key = ?
+			gemini_api_key = ?,
+			dashboard_title = ?,
+			dashboard_subtitle = ?
 		WHERE id = 1
 	`, s.RefreshIntervalMinutes, s.StoriesPerTopic, s.GlobalSourcingPrompt,
-		s.GlobalSummarizingPrompt, s.PrimaryColor, s.SecondaryColor, s.DarkMode, s.GeminiAPIKey)
+		s.GlobalSummarizingPrompt, s.PrimaryColor, s.SecondaryColor, s.DarkMode, s.GeminiAPIKey,
+		s.DashboardTitle, s.DashboardSubtitle)
 	return err
 }
 

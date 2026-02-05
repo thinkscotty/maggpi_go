@@ -64,6 +64,22 @@
             <h2>Appearance</h2>
             <div class="form-row">
                 <div class="form-group">
+                    <label for="dashboard-title">Dashboard Title</label>
+                    <input type="text" id="dashboard-title" name="dashboard_title"
+                        value="{{.Settings.DashboardTitle}}"
+                        placeholder="Dashboard">
+                    <small>Customize the main heading on your dashboard</small>
+                </div>
+                <div class="form-group">
+                    <label for="dashboard-subtitle">Dashboard Subtitle</label>
+                    <input type="text" id="dashboard-subtitle" name="dashboard_subtitle"
+                        value="{{.Settings.DashboardSubtitle}}"
+                        placeholder="Your personalized news feed">
+                    <small>Customize the subtitle on your dashboard</small>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
                     <label for="primary-color">Primary Color</label>
                     <input type="color" id="primary-color" name="primary_color"
                         value="{{.Settings.PrimaryColor}}">
@@ -125,7 +141,9 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
         global_summarizing_prompt: form.global_summarizing_prompt.value,
         primary_color: form.primary_color.value,
         secondary_color: form.secondary_color.value,
-        dark_mode: form.dark_mode.checked
+        dark_mode: form.dark_mode.checked,
+        dashboard_title: form.dashboard_title.value,
+        dashboard_subtitle: form.dashboard_subtitle.value
     };
 
     try {
