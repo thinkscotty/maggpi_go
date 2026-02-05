@@ -288,7 +288,8 @@ func (db *DB) GetStoriesForTopic(topicID int64, limit int) ([]models.Story, erro
 			return nil, err
 		}
 		if sourceID.Valid {
-			s.SourceID = sourceID.Int64
+			id := sourceID.Int64
+			s.SourceID = &id
 		}
 		if sourceTitle.Valid {
 			s.SourceTitle = sourceTitle.String

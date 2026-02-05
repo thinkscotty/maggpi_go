@@ -26,7 +26,7 @@ type Source struct {
 type Story struct {
 	ID          int64     `json:"id"`
 	TopicID     int64     `json:"topic_id"`
-	SourceID    int64     `json:"source_id"`
+	SourceID    *int64    `json:"source_id,omitempty"` // Nullable - may not map to a specific source
 	Title       string    `json:"title"`
 	Summary     string    `json:"summary"`
 	SourceURL   string    `json:"source_url"`
