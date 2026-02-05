@@ -38,17 +38,19 @@ type Story struct {
 
 // Settings represents global application settings
 type Settings struct {
-	ID                       int64  `json:"id"`
-	RefreshIntervalMinutes   int    `json:"refresh_interval_minutes"`
-	StoriesPerTopic          int    `json:"stories_per_topic"`
-	GlobalSourcingPrompt     string `json:"global_sourcing_prompt"`
-	GlobalSummarizingPrompt  string `json:"global_summarizing_prompt"`
-	PrimaryColor             string `json:"primary_color"`
-	SecondaryColor           string `json:"secondary_color"`
-	DarkMode                 bool   `json:"dark_mode"`
-	GeminiAPIKey             string `json:"gemini_api_key"`
-	DashboardTitle           string `json:"dashboard_title"`
-	DashboardSubtitle        string `json:"dashboard_subtitle"`
+	ID                       int64   `json:"id"`
+	RefreshIntervalMinutes   int     `json:"refresh_interval_minutes"`
+	StoriesPerTopic          int     `json:"stories_per_topic"`
+	GlobalSourcingPrompt     string  `json:"global_sourcing_prompt"`
+	GlobalSummarizingPrompt  string  `json:"global_summarizing_prompt"`
+	PrimaryColor             string  `json:"primary_color"`
+	SecondaryColor           string  `json:"secondary_color"`
+	DarkMode                 bool    `json:"dark_mode"`
+	GeminiAPIKey             string  `json:"gemini_api_key"`
+	DashboardTitle           string  `json:"dashboard_title"`
+	DashboardSubtitle        string  `json:"dashboard_subtitle"`
+	StoryTitleFontSize       float64 `json:"story_title_font_size"`
+	StoryTextFontSize        float64 `json:"story_text_font_size"`
 }
 
 // DefaultSettings returns the default application settings
@@ -58,11 +60,13 @@ func DefaultSettings() Settings {
 		StoriesPerTopic:         5,
 		GlobalSourcingPrompt:    "Find reliable, reputable news sources that provide regular updates. Prefer sources with RSS feeds or well-structured HTML. Avoid paywalled content when possible.",
 		GlobalSummarizingPrompt: "Summarize the news story in a clear, informative tone. Focus on the key facts and why this story matters. Keep the summary between 75-150 words.",
-		PrimaryColor:            "#2563eb",
-		SecondaryColor:          "#1e40af",
+		PrimaryColor:            "#243842",
+		SecondaryColor:          "#FA8638",
 		DarkMode:                false,
 		DashboardTitle:          "Dashboard",
 		DashboardSubtitle:       "Your personalized news feed",
+		StoryTitleFontSize:      1.0,
+		StoryTextFontSize:       0.9,
 	}
 }
 

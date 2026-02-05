@@ -1,7 +1,7 @@
 /* MaggPi Styles */
 :root {
-    --primary-color: #2563eb;
-    --secondary-color: #1e40af;
+    --primary-color: #243842;
+    --secondary-color: #FA8638;
     --text-color: #1f2937;
     --text-muted: #6b7280;
     --bg-color: #f9fafb;
@@ -11,6 +11,8 @@
     --error-color: #ef4444;
     --warning-color: #f59e0b;
     --info-color: #3b82f6;
+    --story-title-font-size: 1rem;
+    --story-text-font-size: 0.9rem;
 }
 
 * {
@@ -33,7 +35,7 @@ body {
 .nav {
     background-color: var(--primary-color);
     color: white;
-    padding: 1rem;
+    padding: 0.67rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -152,14 +154,14 @@ body {
 }
 
 .story-title {
-    font-size: 1rem;
+    font-size: var(--story-title-font-size);
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: var(--text-color);
 }
 
 .story-summary {
-    font-size: 0.9rem;
+    font-size: var(--story-text-font-size);
     color: var(--text-muted);
     margin-bottom: 0.75rem;
     line-height: 1.5;
@@ -177,7 +179,7 @@ body {
 }
 
 .story-link {
-    color: var(--primary-color);
+    color: var(--secondary-color);
     text-decoration: none;
     font-weight: 500;
 }

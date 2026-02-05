@@ -1,369 +1,243 @@
-# MaggPi - AI-Powered News Aggregator
+# Maggpi - AI-Powered News Aggregator for Raspberry Pi
 
-MaggPi is a lightweight, self-hosted news aggregator that uses Google's Gemini AI to discover relevant news sources and summarize stories based on your interests. Designed to run on minimal hardware like a Raspberry Pi.
+MaggPi is a very lightweight, self-hosted content aggregator/transformer and content server built with Go to run on minimal hardware. Rather than displaying bare links and text previews, it utilizes Gemini AI's free-tier API to both source content and transform it into bite-sized stories. The user can input ANY topic whatsoever. This makes the applicaiton suitable for 'at-a-glace' topic tracking via the web UI, and for serving to clients (such as smart-home dashboards or news tickers).
+
+The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AGGregator for PI". And second, the Magpie bird - a creature known for its love of collecting shiny objects. Maggpi collects shiny stories from around the internet. 
+
+[![GitHub release](https://img.shields.io/github/v/release/thinkscotty/maggpi_go)](https://github.com/thinkscotty/maggpi_go/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- **User-Defined Topics**: Add any topic you're interested in with a description
-- **AI Source Discovery**: Gemini AI automatically finds relevant news sources for each topic
-- **Smart Summarization**: Stories are intelligently summarized (75-150 words each)
-- **Clean Web Interface**: Simple, responsive dashboard to browse your news
-- **External API**: JSON API for feeding news to other devices (displays, microcontrollers)
-- **Low Resource Usage**: Designed for Raspberry Pi 3B+ and similar hardware
-- **Customizable**: Global AI instructions, color themes, and refresh intervals
+- **Built to be Fast on Lightweight Hardware** - Built in the GO programming language, intentionally lightweight UI and featureset. Runs smoothly on Raspberry Pi 3 and later (requires just 1GB of RAM).
+- **AI-Powered Source Discovery** - Input any topic whatsoever with a brief description and Gemini will add suitable sources. You can, of course, also add your own sources.
+- **Smart Summarization** - Each story intelligently summarized to 75-150 words (configurable)
+- **Custom AI Instructions** - Determine how Gemini chooses sources and transforms stories. Set tone, focus, and more with simple English instructions.
+- **Configurable UI** - Custom logo, dashboard title, and color theme.
+- **Serve Stories to Other Devices** - The original purpose of this project was to build an application for serving updated, short, custom stories to microcontroller-based smart home displays. The web UI is made to allow full customization of what is served via simple JSON configs.
 
-## Screenshots
+### Installation on Raspberry Pi
 
-(Coming soon)
+**NOTE:** Currently, you will need to use your raspberry Pi's CLI (command line) interface to deploy this application. There is no current graphical installation option.
 
-## Requirements
+1. **Download the latest release**
 
-- **Hardware**: Raspberry Pi 3B+ or better (or any Linux/macOS/Windows system)
-- **OS**: Debian-based Linux recommended (tested on Debian 13 Trixie)
-- **API Key**: Free Google Gemini API key ([Get one here](https://aistudio.google.com/apikey))
+   On your Raspberry Pi, download the latest release:
 
-## Quick Start
-
-### Option 1: Build on Mac and Publish as GitHub Release (Recommended)
-
-This option builds the binary on your Mac, publishes it to GitHub as a release, then downloads it on the Pi.
-
-#### Step 1A: Build the Binary on Your Mac
-
-**On your Mac (development machine):**
-
-1. **Install Go** (if not already installed):
-   ```bash
-   # Check if Go is installed
-   go version
-
-   # If not installed, download from https://go.dev/dl/
-   # Or install via Homebrew:
-   brew install go
-   ```
-
-2. **Clone the repository**:
-   ```bash
-   cd ~/code_projects  # Or your preferred directory
-   git clone https://github.com/thinkscotty/maggpi_go.git
-   cd maggpi_go
-   ```
-
-3. **Download dependencies**:
-   ```bash
-   go mod tidy
-   ```
-
-4. **Build the binary for Raspberry Pi** (ARM64):
-   ```bash
-   GOOS=linux GOARCH=arm64 go build -o maggpi-linux-arm64 ./cmd/maggpi
-   ```
-
-   This creates a file called `maggpi-linux-arm64` in your current directory.
-
-5. **Verify the binary was created**:
-   ```bash
-   ls -lh maggpi-linux-arm64
-   ```
-
-   You should see a file around 30-35 MB.
-
-#### Step 1B: Create a Release Package
-
-**On your Mac:**
-
-1. **Create a release directory**:
-   ```bash
-   mkdir -p release/maggpi
-   ```
-
-2. **Copy files to release directory**:
-   ```bash
-   # Copy the binary
-   cp maggpi-linux-arm64 release/maggpi/maggpi
-
-   # Copy the web directory (templates and static files)
-   cp -r web release/maggpi/
-
-   # Copy README for reference
-   cp README.md release/maggpi/
-   ```
-
-3. **Create a compressed archive**:
-   ```bash
-   cd release
-   tar -czf maggpi-v1.0.0-linux-arm64.tar.gz maggpi/
-   cd ..
-   ```
-
-4. **Verify the archive**:
-   ```bash
-   ls -lh release/maggpi-v1.0.0-linux-arm64.tar.gz
-   ```
-
-#### Step 1C: Publish to GitHub as a Release
-
-**On your Mac:**
-
-1. **Install GitHub CLI** (if not already installed):
-   ```bash
-   brew install gh
-   ```
-
-2. **Authenticate with GitHub** (first time only):
-   ```bash
-   gh auth login
-   ```
-
-   Follow the prompts:
-   - Choose "GitHub.com"
-   - Choose "HTTPS"
-   - Authenticate via web browser
-
-3. **Tag your code** (if not already tagged):
-   ```bash
-   git tag -a v1.0.0 -m "Initial release of MaggPi"
-   git push origin v1.0.0
-   ```
-
-4. **Create a GitHub release with the binary**:
-   ```bash
-   gh release create v1.0.0 \
-     release/maggpi-v1.0.0-linux-arm64.tar.gz \
-     --title "MaggPi v1.0.0" \
-     --notes "Initial release of MaggPi - AI-Powered News Aggregator
-
-   ## Features
-   - AI source discovery via Gemini API
-   - Smart story summarization
-   - Web UI with dashboard, topics, and settings
-   - JSON API for external clients
-   - Designed for Raspberry Pi 3B+
-
-   ## Installation
-   1. Download maggpi-v1.0.0-linux-arm64.tar.gz
-   2. Extract on your Raspberry Pi
-   3. Run ./maggpi
-   4. Open http://192.168.0.101:7979 in your browser
-   5. Configure your Gemini API key in Settings
-
-   See README.md for full documentation."
-   ```
-
-5. **Verify the release**:
-   - Visit: https://github.com/thinkscotty/maggpi_go/releases
-   - You should see v1.0.0 with the attached binary file
-
-#### Step 1D: Download and Run on Raspberry Pi
-
-**On your Raspberry Pi:**
-
-1. **Download the release**:
    ```bash
    cd ~
-   wget https://github.com/thinkscotty/maggpi_go/releases/download/v1.0.0/maggpi-v1.0.0-linux-arm64.tar.gz
+   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.0.3-linux-arm64.tar.gz
    ```
 
-2. **Extract the archive**:
+2. **Extract the archive**
+
    ```bash
-   tar -xzf maggpi-v1.0.0-linux-arm64.tar.gz
+   tar -xzf maggpi-v1.0.3-linux-arm64.tar.gz
    cd maggpi
    ```
 
-3. **Make the binary executable**:
+3. **Make the binary executable**
+
    ```bash
    chmod +x maggpi
    ```
 
-4. **Run the application**:
+4. **Run the application**
+
    ```bash
    ./maggpi
    ```
 
-5. **Open in your browser** (from any device on the network):
-   - Navigate to: `http://192.168.0.101:7979`
+   The application will start on port 7979. (79 was my high school football number.)
 
-6. **Configure the application**:
-   - Click **Settings** in the navigation
-   - Enter your **Gemini API Key** (get one at https://aistudio.google.com/apikey)
-   - Adjust refresh intervals and AI instructions as desired
+5. **Access the web interface**
+
+   To find your Pi's IP address, run `hostname -I` on the Raspberry Pi.
+
+   From any device on your local network, open a web browser and navigate to:
+
+   ```
+   http://<your-pi-ip-address>:7979
+   ```
+
+   To find your Pi's IP address, run `hostname -I` on the Raspberry Pi.
+
+6. **Configure your API key**
+
+   - Click **Settings** in the navigation menu
+   - Enter your **Gemini API Key** ([get one free here](https://aistudio.google.com/apikey))
+   - Customize refresh intervals and AI instructions as desired
+   - Optionally personalize your dashboard title and subtitle
    - Click **Save Settings**
 
-The application will start discovering sources and fetching stories for the default topics.
+That's it! MaggPi will automatically start discovering news sources and fetching stories.
 
----
+## Running as a System Service
 
-### Option 2: Build Directly on Raspberry Pi
+To have MaggPi start automatically on boot, create a systemd service:
 
-**On Raspberry Pi:**
+1. **Create the service file**
 
-#### Prerequisites
+   ```bash
+   sudo nano /etc/systemd/system/maggpi.service
+   ```
 
-Install Go 1.21 or later:
+2. **Add the following content** (adjust paths and username as needed)
+
+   ```ini
+   [Unit]
+   Description=MaggPi News Aggregator
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=pi
+   WorkingDirectory=/home/pi/maggpi
+   ExecStart=/home/pi/maggpi/maggpi
+   Restart=on-failure
+   RestartSec=10
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. **Enable and start the service**
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable maggpi
+   sudo systemctl start maggpi
+   ```
+
+4. **Check the status**
+
+   ```bash
+   sudo systemctl status maggpi
+   ```
+
+## Using MaggPi
+
+### Adding Topics
+
+1. Navigate to the **Topics** page
+2. Enter a topic name (e.g., "Space Exploration")
+3. Add a description to help the AI find relevant sources
+4. Click **Add Topic**
+
+The AI will automatically discover 4-8 relevant news sources for your topic.
+
+### Managing Sources
+
+- Click **Sources** on any topic to view and manage its news sources
+- Manually add sources by entering a URL
+- Delete unwanted sources with the X button
+- AI-discovered sources are marked in blue, manual sources in green
+
+### Customizing Appearance
+
+In the **Settings** page, you can customize:
+
+- **Dashboard Title & Subtitle** - Personalize your dashboard heading
+- **Primary & Secondary Colors** - Choose your theme colors
+- **Dark Mode** - Toggle dark mode on or off
+- **Logo** - Replace the default logo with your own (see below)
+
+### Custom Logo
+
+To use your own logo:
+
+1. Prepare a PNG image with transparent background (recommended size: 512x512px)
+2. On your Raspberry Pi, navigate to the `web/static/images/` directory
+3. Replace `maggpi-logo-white-512.png` with your logo file (keep the same filename)
+4. Restart the application
+
+The logo will automatically scale to 64px height in the navigation bar.
+
+## External API
+
+MaggPi provides a REST API for integrating with external devices like e-ink displays or microcontrollers.
+
+### Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/stories` | GET | Get all topics with their stories |
+| `/v1/topics` | GET | Get list of all topics |
+| `/v1/topics/{id}/stories` | GET | Get stories for a specific topic |
+
+### Example
+
+Fetch all stories from the command line:
 
 ```bash
-sudo apt update
-sudo apt install golang-go
-
-# Verify installation
-go version
+curl http://<your-pi-ip>:7979/v1/stories
 ```
 
-#### Build Steps
+Example response:
 
-1. **Clone the repository**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "topic": {
+        "id": 1,
+        "name": "World News",
+        "description": "Major international news and events"
+      },
+      "stories": [
+        {
+          "id": 1,
+          "title": "Breaking: Major Event Occurs",
+          "summary": "A significant event happened today...",
+          "source_url": "https://example.com/article",
+          "source_title": "Example News",
+          "published_at": "2026-02-05T12:00:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Updating
+
+To update to the latest version:
+
+1. **Download the new release**
+
    ```bash
    cd ~
-   git clone https://github.com/thinkscotty/maggpi_go.git
-   cd maggpi_go
+   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.0.3-linux-arm64.tar.gz
+   tar -xzf maggpi-v1.0.3-linux-arm64.tar.gz
    ```
 
-2. **Download dependencies**:
+2. **Stop the service** (if running as a service)
+
    ```bash
-   go mod tidy
+   sudo systemctl stop maggpi
    ```
 
-3. **Build the application**:
+3. **Replace the binary**
+
    ```bash
-   go build -o bin/maggpi ./cmd/maggpi
+   cp ~/maggpi/maggpi /path/to/your/installation/maggpi
+   cp -r ~/maggpi/web /path/to/your/installation/
    ```
 
-   *Note: Building on the Pi may take 5-10 minutes.*
+4. **Restart the service**
 
-4. **Run the application**:
    ```bash
-   ./bin/maggpi
+   sudo systemctl start maggpi
    ```
 
-5. **Configure** (same as Option 1, step 6 above)
-
----
-
-### Option 3: Quick Transfer via SCP (No GitHub Release)
-
-**On your Mac:**
-
-1. **Build the binary** (follow Option 1, Step 1A above)
-
-2. **Transfer to Pi**:
-   ```bash
-   # Create directory on Pi
-   ssh scotty@192.168.0.101 "mkdir -p ~/maggpi"
-
-   # Transfer binary
-   scp maggpi-linux-arm64 scotty@192.168.0.101:~/maggpi/maggpi
-
-   # Transfer web directory
-   scp -r web scotty@192.168.0.101:~/maggpi/
-   ```
-
-**On Raspberry Pi:**
-
-3. **Run the application**:
-   ```bash
-   cd ~/maggpi
-   chmod +x maggpi
-   ./maggpi
-   ```
-
-## Deployment on Raspberry Pi
-
-This guide assumes you're deploying to a Raspberry Pi 3B+ running Pi OS 64-bit (Debian 13 Trixie).
-
-### Step 1: Prepare the Pi
-
-**On Raspberry Pi:**
-
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install git (if not already installed)
-sudo apt install git -y
-```
-
-### Step 2: Clone and Build
-
-**On Raspberry Pi:**
-
-```bash
-# Clone the repository
-cd ~
-git clone https://github.com/thinkscotty/maggpi_go.git
-cd maggpi_go
-
-# Install Go if not already installed
-sudo apt install golang-go -y
-
-# Build
-go mod tidy
-go build -o bin/maggpi ./cmd/maggpi
-```
-
-### Step 3: Install as a Service
-
-**On Raspberry Pi:**
-
-Create a systemd service file:
-
-```bash
-sudo nano /etc/systemd/system/maggpi.service
-```
-
-Add the following content:
-
-```ini
-[Unit]
-Description=MaggPi News Aggregator
-After=network.target
-
-[Service]
-Type=simple
-User=scotty
-WorkingDirectory=/home/scotty/maggpi_go
-ExecStart=/home/scotty/maggpi_go/bin/maggpi
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable maggpi
-sudo systemctl start maggpi
-```
-
-Check status:
-```bash
-sudo systemctl status maggpi
-```
-
-### Step 4: Configure the Application
-
-**From any device on your network:**
-
-1. Open a web browser and navigate to `http://192.168.0.101:7979`
-
-2. Go to **Settings** page
-
-3. Enter your **Gemini API Key**
-   - Get a free key from [Google AI Studio](https://aistudio.google.com/apikey)
-
-4. Customize refresh intervals and AI instructions as desired
-
-5. Click **Save Settings**
-
-The default topics (World News, Formula 1, Science News, Tech News) will automatically begin discovering sources and fetching stories.
+Your database and settings will be automatically preserved and migrated if needed.
 
 ## Configuration
 
 ### Configuration File
 
-The application creates a configuration file at `./data/config.json`:
+The application creates `./data/config.json` with these defaults:
 
 ```json
 {
@@ -375,181 +249,136 @@ The application creates a configuration file at `./data/config.json`:
 }
 ```
 
+You can edit this file to change the port or other settings.
+
 ### Command Line Options
 
 ```bash
-./maggpi -config /path/to/config.json
-```
-
-## External API
-
-MaggPi provides a JSON API for external clients like microcontroller displays:
-
-### Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/stories` | GET | Get all topics with their stories |
-| `/v1/topics` | GET | Get list of all topics |
-| `/v1/topics/{id}/stories` | GET | Get stories for a specific topic |
-
-### Example Response
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "topic": {
-        "id": 1,
-        "name": "World News",
-        "description": "Major international news..."
-      },
-      "stories": [
-        {
-          "id": 1,
-          "title": "Breaking: Major Event Happens",
-          "summary": "A significant event occurred today...",
-          "source_url": "https://example.com/article",
-          "source_title": "Example News"
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Example: Fetch Stories with curl
-
-**From any device on your network:**
-
-```bash
-curl http://192.168.0.101:7979/v1/stories
-```
-
-## Managing Topics
-
-### Adding a Topic
-
-1. Navigate to **Topics** page
-2. Enter a **Topic Name** (e.g., "Space Exploration")
-3. Enter a **Description** that helps the AI find relevant sources
-4. Click **Add Topic**
-
-The AI will automatically discover 4-8 relevant sources for your topic.
-
-### Managing Sources
-
-- Click **Sources** on any topic to view its sources
-- Manually add sources using the URL form
-- Delete sources by clicking the X button
-- AI-discovered sources are marked in blue; manual sources in green
-
-### Reordering Topics
-
-Drag and drop topics to change their display order on the dashboard.
-
-## Updating
-
-**On Raspberry Pi:**
-
-To update to the latest version:
-
-```bash
-cd ~/maggpi_go
-git pull
-go mod tidy
-go build -o bin/maggpi ./cmd/maggpi
-sudo systemctl restart maggpi
+./maggpi -config /path/to/custom-config.json
 ```
 
 ## Troubleshooting
 
 ### Application Won't Start
 
-**On Raspberry Pi:**
-
-1. Check the logs:
+1. Check the logs if running as a service:
    ```bash
    sudo journalctl -u maggpi -f
    ```
 
-2. Verify the configuration file is valid JSON
-
-3. Ensure port 7979 is not in use:
+2. Ensure port 7979 is not already in use:
    ```bash
    sudo lsof -i :7979
    ```
 
+3. Verify the binary has execute permissions:
+   ```bash
+   chmod +x maggpi
+   ```
+
 ### No Stories Appearing
 
-1. Verify your Gemini API key is set correctly in Settings
-2. Check if sources were discovered for your topics
-3. Wait for the refresh interval or manually click the refresh button
-4. Check logs for API errors
+NOTE: The nature of this application requires some time for the AI to do its thing. It can take a few minutes for stories to appear once the Gemini API key is added and topics are refreshed.
+
+1. Verify your Gemini API key is correctly entered in Settings
+2. Check that sources were discovered for your topics (view in Topics page)
+3. Wait for the refresh interval or manually click the refresh button on a topic
+4. Check logs for API errors or rate limiting
 
 ### High Memory Usage
 
-The application is designed for limited hardware. If memory is an issue:
-- Reduce "Stories Per Topic" in Settings
-- Increase the refresh interval
-- Reduce the number of topics
+MaggPi is optimized for low-power devices. If experiencing memory issues:
+
+- Reduce "Stories Per Topic" in Settings (default: 5)
+- Increase the refresh interval (default: 120 minutes)
+- Reduce the number of active topics
 
 ### API Rate Limiting
 
-The free tier Gemini API has rate limits. MaggPi automatically staggers requests, but if you hit limits:
-- Increase the refresh interval
+The free Gemini API tier has rate limits. If you encounter rate limiting:
+
+- Increase the refresh interval between updates
 - Reduce the number of topics
 - Failed refreshes automatically retry after 5 minutes
 
-## Development
+## Building from Source
 
-### Running in Development Mode
-
-**On your development machine:**
+If you prefer to build from source:
 
 ```bash
-# Install air for hot reload
-go install github.com/air-verse/air@latest
+# Install Go (1.21 or later)
+sudo apt update
+sudo apt install golang-go -y
 
-# Run with hot reload
-make dev
+# Clone the repository
+git clone https://github.com/thinkscotty/maggpi_go.git
+cd maggpi_go
+
+# Build
+go mod tidy
+go build -o bin/maggpi ./cmd/maggpi
+
+# Run
+./bin/maggpi
 ```
 
-### Project Structure
+## Project Structure
 
 ```
 maggpi_go/
 ├── cmd/maggpi/          # Application entry point
 ├── internal/
 │   ├── api/             # HTTP router
-│   ├── config/          # Configuration management
 │   ├── database/        # SQLite database layer
 │   ├── gemini/          # Gemini API client
-│   ├── handlers/        # HTTP handlers
-│   ├── models/          # Data models
+│   ├── handlers/        # HTTP request handlers
+│   ├── models/          # Data structures
 │   ├── scheduler/       # Refresh scheduler
-│   └── scraper/         # Web scraper
+│   └── scraper/         # Web scraper (Colly)
 ├── web/
 │   ├── templates/       # HTML templates
-│   └── static/          # CSS and JavaScript
-├── data/                # Database and config storage
-├── Makefile
-└── README.md
+│   └── static/          # CSS, JavaScript, images
+└── data/                # Database and config (created at runtime)
 ```
 
-## License
+## Technology Stack
 
-MIT License - see [LICENSE](LICENSE) for details.
+- **Backend**: Go 1.21+
+- **Database**: SQLite with WAL mode
+- **AI**: Google Gemini API
+- **Web Scraping**: [Colly v2](https://github.com/gocolly/colly)
+- **HTTP Router**: [Chi v5](https://github.com/go-chi/chi)
+- **Templates**: Go html/template
+- **Frontend**: Vanilla JavaScript, CSS Grid
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. This is a personal project and I'm nothing close to an expert. Feel free to:
 
-## Credits
+- Report bugs by opening an issue
+- Suggest new features
+- Submit pull requests
+
+Please test your code thoroughtly before adding it. Thanks!
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details. In short: it's open source and you can do what you want with the code. 
+
+## Acknowledgments
 
 - Built with [Go](https://golang.org/)
 - AI powered by [Google Gemini](https://ai.google.dev/)
 - Web scraping by [Colly](https://github.com/gocolly/colly)
-- Routing by [Chi](https://github.com/go-chi/chi)
+- HTTP routing by [Chi](https://github.com/go-chi/chi)
 - Database by [modernc.org/sqlite](https://modernc.org/sqlite)
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/thinkscotty/maggpi_go/issues)
+- **Documentation**: See this README
+- **Releases**: [GitHub Releases](https://github.com/thinkscotty/maggpi_go/releases)
+
+**AI-GENERATED CODE NOTICE:** Much of this code was generated with Claude Code. Becaude I don't really know how to write Javascript, CSS, or HTML. And barely know how to write Go. 
+
+I hope you enjoy my little project! If you build something cool with it, show me!

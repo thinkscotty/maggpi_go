@@ -91,12 +91,14 @@ func (db *DB) migrate() error {
 		stories_per_topic INTEGER DEFAULT 5,
 		global_sourcing_prompt TEXT,
 		global_summarizing_prompt TEXT,
-		primary_color TEXT DEFAULT '#2563eb',
-		secondary_color TEXT DEFAULT '#1e40af',
+		primary_color TEXT DEFAULT '#243842',
+		secondary_color TEXT DEFAULT '#FA8638',
 		dark_mode BOOLEAN DEFAULT FALSE,
 		gemini_api_key TEXT,
 		dashboard_title TEXT DEFAULT 'Dashboard',
-		dashboard_subtitle TEXT DEFAULT 'Your personalized news feed'
+		dashboard_subtitle TEXT DEFAULT 'Your personalized news feed',
+		story_title_font_size REAL DEFAULT 1.0,
+		story_text_font_size REAL DEFAULT 0.9
 	);
 
 	CREATE TABLE IF NOT EXISTS refresh_status (
@@ -121,6 +123,8 @@ func (db *DB) migrate() error {
 	migrations := []string{
 		`ALTER TABLE settings ADD COLUMN dashboard_title TEXT DEFAULT 'Dashboard'`,
 		`ALTER TABLE settings ADD COLUMN dashboard_subtitle TEXT DEFAULT 'Your personalized news feed'`,
+		`ALTER TABLE settings ADD COLUMN story_title_font_size REAL DEFAULT 1.0`,
+		`ALTER TABLE settings ADD COLUMN story_text_font_size REAL DEFAULT 0.9`,
 	}
 
 	for _, migration := range migrations {
@@ -352,15 +356,16 @@ func (db *DB) DeleteOldStories(topicID int64, keepCount int) error {
 func (db *DB) GetSettings() (*models.Settings, error) {
 	var s models.Settings
 	var sourcingPrompt, summarizingPrompt, apiKey, dashTitle, dashSubtitle sql.NullString
+	var storyTitleFontSize, storyTextFontSize sql.NullFloat64
 
 	err := db.conn.QueryRow(`
 		SELECT id, refresh_interval_minutes, stories_per_topic, global_sourcing_prompt,
 		       global_summarizing_prompt, primary_color, secondary_color, dark_mode, gemini_api_key,
-		       dashboard_title, dashboard_subtitle
+		       dashboard_title, dashboard_subtitle, story_title_font_size, story_text_font_size
 		FROM settings WHERE id = 1
 	`).Scan(&s.ID, &s.RefreshIntervalMinutes, &s.StoriesPerTopic, &sourcingPrompt,
 		&summarizingPrompt, &s.PrimaryColor, &s.SecondaryColor, &s.DarkMode, &apiKey,
-		&dashTitle, &dashSubtitle)
+		&dashTitle, &dashSubtitle, &storyTitleFontSize, &storyTextFontSize)
 
 	if err == sql.ErrNoRows {
 		// Insert default settings
@@ -368,11 +373,11 @@ func (db *DB) GetSettings() (*models.Settings, error) {
 		_, err = db.conn.Exec(`
 			INSERT INTO settings (id, refresh_interval_minutes, stories_per_topic, global_sourcing_prompt,
 			                      global_summarizing_prompt, primary_color, secondary_color, dark_mode,
-			                      dashboard_title, dashboard_subtitle)
-			VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			                      dashboard_title, dashboard_subtitle, story_title_font_size, story_text_font_size)
+			VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, defaults.RefreshIntervalMinutes, defaults.StoriesPerTopic, defaults.GlobalSourcingPrompt,
 			defaults.GlobalSummarizingPrompt, defaults.PrimaryColor, defaults.SecondaryColor, defaults.DarkMode,
-			defaults.DashboardTitle, defaults.DashboardSubtitle)
+			defaults.DashboardTitle, defaults.DashboardSubtitle, defaults.StoryTitleFontSize, defaults.StoryTextFontSize)
 		if err != nil {
 			return nil, err
 		}
@@ -397,6 +402,16 @@ func (db *DB) GetSettings() (*models.Settings, error) {
 	if dashSubtitle.Valid {
 		s.DashboardSubtitle = dashSubtitle.String
 	}
+	if storyTitleFontSize.Valid {
+		s.StoryTitleFontSize = storyTitleFontSize.Float64
+	} else {
+		s.StoryTitleFontSize = 1.0
+	}
+	if storyTextFontSize.Valid {
+		s.StoryTextFontSize = storyTextFontSize.Float64
+	} else {
+		s.StoryTextFontSize = 0.9
+	}
 
 	return &s, nil
 }
@@ -414,11 +429,13 @@ func (db *DB) UpdateSettings(s *models.Settings) error {
 			dark_mode = ?,
 			gemini_api_key = ?,
 			dashboard_title = ?,
-			dashboard_subtitle = ?
+			dashboard_subtitle = ?,
+			story_title_font_size = ?,
+			story_text_font_size = ?
 		WHERE id = 1
 	`, s.RefreshIntervalMinutes, s.StoriesPerTopic, s.GlobalSourcingPrompt,
 		s.GlobalSummarizingPrompt, s.PrimaryColor, s.SecondaryColor, s.DarkMode, s.GeminiAPIKey,
-		s.DashboardTitle, s.DashboardSubtitle)
+		s.DashboardTitle, s.DashboardSubtitle, s.StoryTitleFontSize, s.StoryTextFontSize)
 	return err
 }
 

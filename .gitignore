@@ -39,3 +39,6 @@ tmp/
 # Environment files
 .env
 .env.local
+
+# Personal documentation
+README_SCOTTY.md
