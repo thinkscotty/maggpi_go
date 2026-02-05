@@ -1,0 +1,63 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - MaggPi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    {{if .Settings}}
+    <style>
+        :root {
+            --primary-color: {{.Settings.PrimaryColor}};
+            --secondary-color: {{.Settings.SecondaryColor}};
+        }
+        {{if .Settings.DarkMode}}
+        body {
+            background-color: #1a1a2e;
+            color: #eaeaea;
+        }
+        .card {
+            background-color: #16213e;
+            border-color: #0f3460;
+        }
+        .nav {
+            background-color: #0f3460;
+        }
+        input, textarea, select {
+            background-color: #1a1a2e;
+            color: #eaeaea;
+            border-color: #0f3460;
+        }
+        {{end}}
+    </style>
+    {{end}}
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-brand">
+            <a href="/">MaggPi</a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="{{if eq .Title "Dashboard"}}active{{end}}">Dashboard</a>
+            <a href="/topics" class="{{if eq .Title "Manage Topics"}}active{{end}}">Topics</a>
+            <a href="/settings" class="{{if eq .Title "Settings"}}active{{end}}">Settings</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {{template "content" .}}
+    </main>
+
+    <footer class="footer">
+        <p>MaggPi - AI-Powered News Aggregator</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    {{block "scripts" .}}{{end}}
+</body>
+</html>
+{{end}}

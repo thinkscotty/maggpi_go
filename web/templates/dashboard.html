@@ -1,0 +1,83 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="dashboard">
+    <header class="page-header">
+        <h1>Dashboard</h1>
+        <p class="subtitle">Your personalized news feed</p>
+    </header>
+
+    {{if not .Topics}}
+    <div class="empty-state">
+        <h2>No Topics Yet</h2>
+        <p>Add some topics to get started with your news feed.</p>
+        <a href="/topics" class="btn btn-primary">Add Topics</a>
+    </div>
+    {{else}}
+    <div class="topics-grid">
+        {{range .Topics}}
+        <div class="topic-card" data-topic-id="{{.Topic.ID}}">
+            <div class="topic-header">
+                <h2>{{.Topic.Name}}</h2>
+                <button class="btn btn-sm btn-outline refresh-btn" onclick="refreshTopic({{.Topic.ID}})" title="Refresh">
+                    <span class="refresh-icon">&#8635;</span>
+                </button>
+            </div>
+
+            {{if not .Stories}}
+            <div class="no-stories">
+                <p>No stories yet. Click refresh to fetch news.</p>
+            </div>
+            {{else}}
+            <div class="stories-list">
+                {{range .Stories}}
+                <article class="story">
+                    <h3 class="story-title">{{.Title}}</h3>
+                    <p class="story-summary">{{.Summary}}</p>
+                    <div class="story-meta">
+                        {{if .SourceTitle}}
+                        <span class="story-source">{{.SourceTitle}}</span>
+                        {{end}}
+                        <a href="{{.SourceURL}}" target="_blank" rel="noopener noreferrer" class="story-link">
+                            Read Full Story &rarr;
+                        </a>
+                    </div>
+                </article>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+async function refreshTopic(topicId) {
+    const btn = document.querySelector(`[data-topic-id="${topicId}"] .refresh-btn`);
+    btn.classList.add('spinning');
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/api/topics/${topicId}/refresh`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            showNotification('Refresh started. This may take a minute...', 'info');
+            // Reload page after a delay to see new stories
+            setTimeout(() => location.reload(), 60000);
+        } else {
+            showNotification('Failed to start refresh', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    } finally {
+        btn.classList.remove('spinning');
+        btn.disabled = false;
+    }
+}
+</script>
+{{end}}

@@ -1,0 +1,297 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="topics-page">
+    <header class="page-header">
+        <h1>Manage Topics</h1>
+        <p class="subtitle">Add, edit, and organize your news topics</p>
+    </header>
+
+    <section class="add-topic-section">
+        <h2>Add New Topic</h2>
+        <form id="add-topic-form" class="topic-form">
+            <div class="form-group">
+                <label for="topic-name">Topic Name</label>
+                <input type="text" id="topic-name" name="name" required placeholder="e.g., Sports, Politics, Gaming">
+            </div>
+            <div class="form-group">
+                <label for="topic-description">Description</label>
+                <textarea id="topic-description" name="description" rows="3" required
+                    placeholder="Describe what kind of content you want. This helps the AI find relevant sources."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Topic</button>
+        </form>
+    </section>
+
+    <section class="topics-list-section">
+        <h2>Your Topics</h2>
+        <p class="help-text">Drag to reorder topics. Click on a topic to manage its sources.</p>
+
+        {{if not .Topics}}
+        <div class="empty-state">
+            <p>No topics yet. Add your first topic above!</p>
+        </div>
+        {{else}}
+        <div id="topics-list" class="topics-list">
+            {{range .Topics}}
+            <div class="topic-item" data-topic-id="{{.Topic.ID}}">
+                <div class="topic-item-header">
+                    <span class="drag-handle">&#9776;</span>
+                    <div class="topic-info">
+                        <h3>{{.Topic.Name}}</h3>
+                        <p class="topic-description">{{.Topic.Description}}</p>
+                    </div>
+                    <div class="topic-actions">
+                        <button class="btn btn-sm btn-outline" onclick="toggleSources({{.Topic.ID}})">
+                            Sources ({{len .Sources}})
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="editTopic({{.Topic.ID}}, '{{.Topic.Name}}', '{{.Topic.Description}}')">
+                            Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteTopic({{.Topic.ID}}, '{{.Topic.Name}}')">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sources-panel" id="sources-{{.Topic.ID}}" style="display: none;">
+                    <div class="sources-header">
+                        <h4>Sources</h4>
+                        <form class="add-source-form" onsubmit="addSource(event, {{.Topic.ID}})">
+                            <input type="url" name="url" placeholder="https://example.com/feed" required>
+                            <input type="text" name="name" placeholder="Source Name" required>
+                            <button type="submit" class="btn btn-sm btn-primary">Add</button>
+                        </form>
+                    </div>
+                    <ul class="sources-list">
+                        {{range .Sources}}
+                        <li class="source-item {{if .IsManual}}manual{{else}}ai{{end}}">
+                            <span class="source-name">{{.Name}}</span>
+                            <a href="{{.URL}}" target="_blank" rel="noopener" class="source-url">{{.URL}}</a>
+                            <span class="source-type">{{if .IsManual}}Manual{{else}}AI{{end}}</span>
+                            <button class="btn btn-sm btn-danger" onclick="deleteSource({{$.Topic.ID}}, {{.ID}})">
+                                &times;
+                            </button>
+                        </li>
+                        {{else}}
+                        <li class="no-sources">No sources yet. Add manually or wait for AI discovery.</li>
+                        {{end}}
+                    </ul>
+                </div>
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+    </section>
+</div>
+
+<!-- Edit Topic Modal -->
+<div id="edit-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2>Edit Topic</h2>
+        <form id="edit-topic-form">
+            <input type="hidden" id="edit-topic-id">
+            <div class="form-group">
+                <label for="edit-topic-name">Topic Name</label>
+                <input type="text" id="edit-topic-name" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-topic-description">Description</label>
+                <textarea id="edit-topic-description" rows="3" required></textarea>
+                <small>Note: Changing the description will trigger AI to discover new sources.</small>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+// Add topic form
+document.getElementById('add-topic-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const name = form.name.value;
+    const description = form.description.value;
+
+    try {
+        const response = await fetch('/api/topics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        });
+
+        if (response.ok) {
+            showNotification('Topic created! AI is discovering sources...', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || 'Failed to create topic', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+});
+
+// Toggle sources panel
+function toggleSources(topicId) {
+    const panel = document.getElementById(`sources-${topicId}`);
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+// Edit topic
+function editTopic(id, name, description) {
+    document.getElementById('edit-topic-id').value = id;
+    document.getElementById('edit-topic-name').value = name;
+    document.getElementById('edit-topic-description').value = description;
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+}
+
+document.getElementById('edit-topic-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-topic-id').value;
+    const name = document.getElementById('edit-topic-name').value;
+    const description = document.getElementById('edit-topic-description').value;
+
+    try {
+        const response = await fetch(`/api/topics/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        });
+
+        if (response.ok) {
+            showNotification('Topic updated!', 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || 'Failed to update topic', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+});
+
+// Delete topic
+async function deleteTopic(id, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all associated stories.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/topics/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            showNotification('Topic deleted', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification('Failed to delete topic', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Add source
+async function addSource(e, topicId) {
+    e.preventDefault();
+    const form = e.target;
+    const url = form.url.value;
+    const name = form.name.value;
+
+    try {
+        const response = await fetch(`/api/topics/${topicId}/sources`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, name })
+        });
+
+        if (response.ok) {
+            showNotification('Source added!', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || 'Failed to add source', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Delete source
+async function deleteSource(topicId, sourceId) {
+    if (!confirm('Delete this source?')) return;
+
+    try {
+        const response = await fetch(`/api/topics/${topicId}/sources/${sourceId}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            showNotification('Source deleted', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification('Failed to delete source', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Drag and drop reordering (simple implementation)
+let draggedItem = null;
+
+document.querySelectorAll('.topic-item').forEach(item => {
+    item.draggable = true;
+
+    item.addEventListener('dragstart', (e) => {
+        draggedItem = item;
+        item.classList.add('dragging');
+    });
+
+    item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        draggedItem = null;
+        saveOrder();
+    });
+
+    item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (draggedItem && draggedItem !== item) {
+            const list = document.getElementById('topics-list');
+            const items = [...list.querySelectorAll('.topic-item')];
+            const draggedIdx = items.indexOf(draggedItem);
+            const targetIdx = items.indexOf(item);
+
+            if (draggedIdx < targetIdx) {
+                item.after(draggedItem);
+            } else {
+                item.before(draggedItem);
+            }
+        }
+    });
+});
+
+async function saveOrder() {
+    const items = document.querySelectorAll('.topic-item');
+    const topicIds = [...items].map(item => parseInt(item.dataset.topicId));
+
+    try {
+        await fetch('/api/topics/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic_ids: topicIds })
+        });
+    } catch (error) {
+        console.error('Failed to save order:', error);
+    }
+}
+</script>
+{{end}}

@@ -1,0 +1,150 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="settings-page">
+    <header class="page-header">
+        <h1>Settings</h1>
+        <p class="subtitle">Configure your MaggPi instance</p>
+    </header>
+
+    <form id="settings-form" class="settings-form">
+        <!-- API Settings -->
+        <section class="settings-section">
+            <h2>API Configuration</h2>
+            <div class="form-group">
+                <label for="gemini-api-key">Gemini API Key</label>
+                <input type="password" id="gemini-api-key" name="gemini_api_key"
+                    value="{{.Settings.GeminiAPIKey}}"
+                    placeholder="Enter your Gemini API key">
+                <small>
+                    Get a free API key from
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
+                </small>
+            </div>
+        </section>
+
+        <!-- Refresh Settings -->
+        <section class="settings-section">
+            <h2>Refresh Settings</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="refresh-interval">Refresh Interval (minutes)</label>
+                    <input type="number" id="refresh-interval" name="refresh_interval_minutes"
+                        value="{{.Settings.RefreshIntervalMinutes}}" min="30" max="1440">
+                    <small>How often to check for new stories (min: 30, max: 1440)</small>
+                </div>
+                <div class="form-group">
+                    <label for="stories-per-topic">Stories Per Topic</label>
+                    <input type="number" id="stories-per-topic" name="stories_per_topic"
+                        value="{{.Settings.StoriesPerTopic}}" min="1" max="20">
+                    <small>Maximum stories to display per topic (1-20)</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Instructions -->
+        <section class="settings-section">
+            <h2>Global AI Instructions</h2>
+            <div class="form-group">
+                <label for="sourcing-prompt">Source Discovery Instructions</label>
+                <textarea id="sourcing-prompt" name="global_sourcing_prompt" rows="4"
+                    placeholder="Instructions for how the AI should choose news sources">{{.Settings.GlobalSourcingPrompt}}</textarea>
+                <small>Guide the AI in selecting reliable and relevant news sources for your topics.</small>
+            </div>
+            <div class="form-group">
+                <label for="summarizing-prompt">Summarization Instructions</label>
+                <textarea id="summarizing-prompt" name="global_summarizing_prompt" rows="4"
+                    placeholder="Instructions for how the AI should summarize stories">{{.Settings.GlobalSummarizingPrompt}}</textarea>
+                <small>Control the tone, style, and focus of story summaries.</small>
+            </div>
+        </section>
+
+        <!-- UI Settings -->
+        <section class="settings-section">
+            <h2>Appearance</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="primary-color">Primary Color</label>
+                    <input type="color" id="primary-color" name="primary_color"
+                        value="{{.Settings.PrimaryColor}}">
+                </div>
+                <div class="form-group">
+                    <label for="secondary-color">Secondary Color</label>
+                    <input type="color" id="secondary-color" name="secondary_color"
+                        value="{{.Settings.SecondaryColor}}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="dark-mode" name="dark_mode"
+                        {{if .Settings.DarkMode}}checked{{end}}>
+                    Enable Dark Mode
+                </label>
+            </div>
+        </section>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+            <button type="button" class="btn btn-outline" onclick="location.reload()">Reset</button>
+        </div>
+    </form>
+
+    <!-- API Information -->
+    <section class="settings-section info-section">
+        <h2>External API</h2>
+        <p>MaggPi provides a JSON API for external clients (like microcontroller displays):</p>
+        <div class="api-endpoints">
+            <div class="endpoint">
+                <code>GET /v1/stories</code>
+                <span>Get all topics with their stories</span>
+            </div>
+            <div class="endpoint">
+                <code>GET /v1/topics</code>
+                <span>Get list of all topics</span>
+            </div>
+            <div class="endpoint">
+                <code>GET /v1/topics/{id}/stories</code>
+                <span>Get stories for a specific topic</span>
+            </div>
+        </div>
+    </section>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+
+    const settings = {
+        gemini_api_key: form.gemini_api_key.value,
+        refresh_interval_minutes: parseInt(form.refresh_interval_minutes.value),
+        stories_per_topic: parseInt(form.stories_per_topic.value),
+        global_sourcing_prompt: form.global_sourcing_prompt.value,
+        global_summarizing_prompt: form.global_summarizing_prompt.value,
+        primary_color: form.primary_color.value,
+        secondary_color: form.secondary_color.value,
+        dark_mode: form.dark_mode.checked
+    };
+
+    try {
+        const response = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+            showNotification('Settings saved!', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || 'Failed to save settings', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+});
+</script>
+{{end}}
