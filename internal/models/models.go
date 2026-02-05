@@ -58,7 +58,7 @@ func DefaultSettings() Settings {
 	return Settings{
 		RefreshIntervalMinutes:  120,
 		StoriesPerTopic:         5,
-		GlobalSourcingPrompt:    "Find reliable, reputable news sources that provide regular updates. Prefer sources with RSS feeds or well-structured HTML. Avoid paywalled content when possible.",
+		GlobalSourcingPrompt:    "Find reliable, reputable news sources that provide regular updates. Include relevant Reddit subreddits when appropriate for niche topics. Prefer sources with RSS feeds or well-structured HTML. Avoid paywalled content when possible.",
 		GlobalSummarizingPrompt: "Summarize the news story in a clear, informative tone. Focus on the key facts and why this story matters. Keep the summary between 75-150 words.",
 		PrimaryColor:            "#243842",
 		SecondaryColor:          "#FA8638",

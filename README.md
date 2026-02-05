@@ -10,7 +10,8 @@ The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AG
 ## Features
 
 - **Built to be Fast on Lightweight Hardware** - Built in the GO programming language, intentionally lightweight UI and featureset. Runs smoothly on Raspberry Pi 3 and later (requires just 1GB of RAM).
-- **AI-Powered Source Discovery** - Input any topic whatsoever with a brief description and Gemini will add suitable sources. You can, of course, also add your own sources.
+- **AI-Powered Source Discovery** - Input any topic whatsoever with a brief description and Gemini will add suitable sources, including relevant Reddit subreddits. You can, of course, also add your own sources.
+- **Reddit Integration** - Automatically discovers and fetches content from relevant subreddits for niche topics. Filters for substantive text posts only.
 - **Smart Summarization** - Each story intelligently summarized to 75-150 words (configurable)
 - **Custom AI Instructions** - Determine how Gemini chooses sources and transforms stories. Set tone, focus, and more with simple English instructions.
 - **Configurable UI** - Custom logo, dashboard title, and color theme.
@@ -26,13 +27,13 @@ The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AG
 
    ```bash
    cd ~
-   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.0.3-linux-arm64.tar.gz
+   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.2.0-linux-arm64.tar.gz
    ```
 
 2. **Extract the archive**
 
    ```bash
-   tar -xzf maggpi-v1.0.3-linux-arm64.tar.gz
+   tar -xzf maggpi-v1.2.0-linux-arm64.tar.gz
    cd maggpi
    ```
 
@@ -208,8 +209,8 @@ To update to the latest version:
 
    ```bash
    cd ~
-   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.0.3-linux-arm64.tar.gz
-   tar -xzf maggpi-v1.0.3-linux-arm64.tar.gz
+   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.2.0-linux-arm64.tar.gz
+   tar -xzf maggpi-v1.2.0-linux-arm64.tar.gz
    ```
 
 2. **Stop the service** (if running as a service)

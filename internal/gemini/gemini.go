@@ -65,7 +65,14 @@ Description: %s
 
 %s
 
-Find 4-8 reliable web sources (websites, RSS feeds, or APIs) that provide ongoing news and updates related to this topic. For each source, provide:
+Find 4-8 reliable sources that provide ongoing news and updates related to this topic. Sources can include:
+- News websites and RSS feeds
+- Reddit subreddits (format as https://reddit.com/r/subredditname)
+- Technical blogs or official sources
+
+For Reddit, include 1-2 relevant subreddits if they exist for this topic. Choose active subreddits with engaged communities that discuss topics directly related to the user's topic description.
+
+For each source, provide:
 1. The URL (must be a real, working URL)
 2. A short name for the source
 3. A brief description of what content it provides
@@ -75,7 +82,7 @@ IMPORTANT: Return ONLY a valid JSON array with no additional text, markdown, or 
 Format your response as a JSON array like this:
 [
   {"url": "https://example.com/feed", "name": "Example News", "description": "Daily updates on topic"},
-  {"url": "https://another.com", "name": "Another Source", "description": "Breaking news coverage"}
+  {"url": "https://reddit.com/r/technology", "name": "r/technology", "description": "Tech news and discussion"}
 ]`, topicName, topicDescription, globalInstructions)
 
 	result, err := c.client.Models.GenerateContent(ctx, c.model,
@@ -124,10 +131,18 @@ Topic: %s
 Scraped Content:
 %s
 
-From the content above, identify the %d most interesting and relevant news stories. For each story:
+From the content above, identify the %d most interesting and relevant news stories.
+
+IMPORTANT FILTERING RULES:
+- ONLY include content that DIRECTLY relates to the topic "%s"
+- Skip any content that is off-topic or only tangentially related
+- For Reddit posts, focus on substantive discussions and news, not casual comments or memes
+- Prioritize recent, newsworthy content over general discussion
+
+For each story:
 1. Create a compelling headline (title)
 2. Write a summary of 75-150 words focusing on key facts and why this story matters
-3. Include the source URL where the story was found
+3. Include the source URL where the story was found (for Reddit posts, use the full permalink URL)
 4. Include the source name/title
 
 IMPORTANT: Return ONLY a valid JSON array with no additional text, markdown, or explanation. The response must be parseable JSON.
@@ -135,7 +150,7 @@ IMPORTANT: Return ONLY a valid JSON array with no additional text, markdown, or 
 Format your response as a JSON array like this:
 [
   {"title": "Headline Here", "summary": "Summary text here...", "source_url": "https://source.com/article", "source_title": "Source Name"}
-]`, topicName, globalInstructions, contentBuilder.String(), maxStories)
+]`, topicName, globalInstructions, contentBuilder.String(), maxStories, topicName)
 
 	result, err := c.client.Models.GenerateContent(ctx, c.model,
 		[]*genai.Content{{Parts: []*genai.Part{{Text: prompt}}}},

@@ -11,6 +11,7 @@ import (
 	"github.com/gocolly/colly/v2"
 	"github.com/thinkscotty/maggpi_go/internal/gemini"
 	"github.com/thinkscotty/maggpi_go/internal/models"
+	"github.com/thinkscotty/maggpi_go/internal/reddit"
 )
 
 // Scraper handles web scraping operations
@@ -18,6 +19,7 @@ type Scraper struct {
 	userAgent      string
 	requestTimeout time.Duration
 	parallelLimit  int
+	redditClient   *reddit.Client
 }
 
 // New creates a new Scraper
@@ -26,11 +28,17 @@ func New() *Scraper {
 		userAgent:      "MaggPi/1.0 (Raspberry Pi News Aggregator; +https://github.com/thinkscotty/maggpi_go)",
 		requestTimeout: 30 * time.Second,
 		parallelLimit:  2, // Keep low for Raspberry Pi
+		redditClient:   reddit.New(),
 	}
 }
 
 // ScrapeSource scrapes content from a single source
 func (s *Scraper) ScrapeSource(ctx context.Context, source models.Source) (*gemini.ScrapedContent, error) {
+	// Route Reddit URLs to the Reddit client
+	if reddit.IsRedditURL(source.URL) {
+		return s.scrapeRedditSource(ctx, source)
+	}
+
 	c := colly.NewCollector(
 		colly.UserAgent(s.userAgent),
 		colly.MaxDepth(1),
@@ -236,4 +244,58 @@ func ValidateURL(urlStr string) error {
 	}
 
 	return nil
+}
+
+// scrapeRedditSource fetches posts from a Reddit subreddit
+func (s *Scraper) scrapeRedditSource(ctx context.Context, source models.Source) (*gemini.ScrapedContent, error) {
+	posts, err := s.redditClient.FetchPosts(ctx, source.URL, source.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch Reddit posts: %w", err)
+	}
+
+	if len(posts) == 0 {
+		return nil, fmt.Errorf("no valid posts found in subreddit (text posts with >100 words)")
+	}
+
+	// Format posts into content for Gemini
+	var content strings.Builder
+	for _, post := range posts {
+		content.WriteString(fmt.Sprintf("REDDIT POST: %s\n", post.Title))
+		content.WriteString(fmt.Sprintf("LINK: https://reddit.com%s\n", post.Permalink))
+		content.WriteString(fmt.Sprintf("SCORE: %d | AUTHOR: u/%s\n", post.Score, post.Author))
+		content.WriteString(post.Body)
+		content.WriteString("\n\n---\n\n")
+	}
+
+	contentStr := content.String()
+
+	// Truncate if too long (same limit as web scraping)
+	maxLength := 10000
+	if len(contentStr) > maxLength {
+		contentStr = contentStr[:maxLength] + "..."
+	}
+
+	sourceName := source.Name
+	if sourceName == "" {
+		sourceName = fmt.Sprintf("r/%s", extractSubredditName(source.URL))
+	}
+
+	return &gemini.ScrapedContent{
+		URL:        source.URL,
+		SourceName: sourceName,
+		Content:    contentStr,
+	}, nil
+}
+
+// extractSubredditName extracts just the subreddit name for display
+func extractSubredditName(url string) string {
+	// Simple extraction - look for /r/ and get the next segment
+	if idx := strings.Index(url, "/r/"); idx != -1 {
+		rest := url[idx+3:]
+		if slashIdx := strings.Index(rest, "/"); slashIdx != -1 {
+			return rest[:slashIdx]
+		}
+		return rest
+	}
+	return "reddit"
 }
