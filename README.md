@@ -19,51 +19,51 @@ The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AG
 
 ### Installation on Raspberry Pi
 
-**NOTE:** Currently, you will need to use your raspberry Pi's CLI (command line) interface to deploy this application. There is no current graphical installation option.
+**NOTE:** You will need to use your Raspberry Pi's CLI (command line) to install this application. A 64-bit OS is required (Raspberry Pi OS 64-bit recommended).
 
-1. **Download the latest release**
+1. **Install Go** (if not already installed)
 
-   On your Raspberry Pi, download the latest release:
+   ```bash
+   sudo apt update
+   sudo apt install -y golang-go git
+   ```
+
+   Verify Go is installed (requires Go 1.21+):
+   ```bash
+   go version
+   ```
+
+2. **Download and build MaggPi**
 
    ```bash
    cd ~
-   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.2.0-linux-arm64.tar.gz
+   git clone https://github.com/thinkscotty/maggpi_go.git
+   cd maggpi_go
+   go mod tidy
+   go build -o maggpi ./cmd/maggpi
    ```
 
-2. **Extract the archive**
-
-   ```bash
-   tar -xzf maggpi-v1.2.0-linux-arm64.tar.gz
-   cd maggpi
-   ```
-
-3. **Make the binary executable**
-
-   ```bash
-   chmod +x maggpi
-   ```
-
-4. **Run the application**
+3. **Run the application**
 
    ```bash
    ./maggpi
    ```
 
-   The application will start on port 7979. (79 was my high school football number.)
+   The application will start on port 7979.
 
-5. **Access the web interface**
+4. **Access the web interface**
 
-   To find your Pi's IP address, run `hostname -I` on the Raspberry Pi.
+   Find your Pi's IP address:
+   ```bash
+   hostname -I
+   ```
 
    From any device on your local network, open a web browser and navigate to:
-
    ```
    http://<your-pi-ip-address>:7979
    ```
 
-   To find your Pi's IP address, run `hostname -I` on the Raspberry Pi.
-
-6. **Configure your API key**
+5. **Configure your API key**
 
    - Click **Settings** in the navigation menu
    - Enter your **Gemini API Key** ([get one free here](https://aistudio.google.com/apikey))
@@ -83,7 +83,7 @@ To have MaggPi start automatically on boot, create a systemd service:
    sudo nano /etc/systemd/system/maggpi.service
    ```
 
-2. **Add the following content** (adjust paths and username as needed)
+2. **Add the following content** (adjust username if not `pi`)
 
    ```ini
    [Unit]
@@ -93,8 +93,8 @@ To have MaggPi start automatically on boot, create a systemd service:
    [Service]
    Type=simple
    User=pi
-   WorkingDirectory=/home/pi/maggpi
-   ExecStart=/home/pi/maggpi/maggpi
+   WorkingDirectory=/home/pi/maggpi_go
+   ExecStart=/home/pi/maggpi_go/maggpi
    Restart=on-failure
    RestartSec=10
 
@@ -205,28 +205,22 @@ Example response:
 
 To update to the latest version:
 
-1. **Download the new release**
-
-   ```bash
-   cd ~
-   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-v1.2.0-linux-arm64.tar.gz
-   tar -xzf maggpi-v1.2.0-linux-arm64.tar.gz
-   ```
-
-2. **Stop the service** (if running as a service)
+1. **Stop the service** (if running as a service)
 
    ```bash
    sudo systemctl stop maggpi
    ```
 
-3. **Replace the binary**
+2. **Pull the latest code and rebuild**
 
    ```bash
-   cp ~/maggpi/maggpi /path/to/your/installation/maggpi
-   cp -r ~/maggpi/web /path/to/your/installation/
+   cd ~/maggpi_go
+   git pull origin main
+   go mod tidy
+   go build -o maggpi ./cmd/maggpi
    ```
 
-4. **Restart the service**
+3. **Restart the service**
 
    ```bash
    sudo systemctl start maggpi
@@ -380,6 +374,6 @@ MIT License - see [LICENSE](LICENSE) file for details. In short: it's open sourc
 - **Documentation**: See this README
 - **Releases**: [GitHub Releases](https://github.com/thinkscotty/maggpi_go/releases)
 
-**AI-GENERATED CODE NOTICE:** Much of this code was generated with Claude Code. Becaude I don't really know how to write Javascript, CSS, or HTML. And barely know how to write Go. 
+**AI-GENERATED CODE NOTICE:** Some of this code was generated with Claude Code. Becaude I don't really know how to write Javascript, CSS, or HTML. And I'm pretty new to coding in Go. 
 
 I hope you enjoy my little project! If you build something cool with it, show me!
