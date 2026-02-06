@@ -17,28 +17,10 @@
             --story-title-font-size: {{.Settings.StoryTitleFontSize}}rem;
             --story-text-font-size: {{.Settings.StoryTextFontSize}}rem;
         }
-        {{if .Settings.DarkMode}}
-        body {
-            background-color: #1a1a2e;
-            color: #eaeaea;
-        }
-        .card {
-            background-color: #16213e;
-            border-color: #0f3460;
-        }
-        .nav {
-            background-color: #0f3460;
-        }
-        input, textarea, select {
-            background-color: #1a1a2e;
-            color: #eaeaea;
-            border-color: #0f3460;
-        }
-        {{end}}
     </style>
     {{end}}
 </head>
-<body>
+<body{{if and .Settings .Settings.DarkMode}} class="dark-mode"{{end}}>
     <nav class="nav">
         <div class="nav-brand">
             <a href="/">

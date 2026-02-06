@@ -95,13 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (darkModeInput) {
         darkModeInput.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                document.body.style.backgroundColor = '#1a1a2e';
-                document.body.style.color = '#eaeaea';
-            } else {
-                document.body.style.backgroundColor = '';
-                document.body.style.color = '';
-            }
+            document.body.classList.toggle('dark-mode', e.target.checked);
         });
     }
 });
