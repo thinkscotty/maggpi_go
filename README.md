@@ -21,6 +21,26 @@ The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AG
 
 **NOTE:** You will need to use your Raspberry Pi's CLI (command line) to install this application. A 64-bit OS is required (Raspberry Pi OS 64-bit recommended).
 
+#### Option A: Download Pre-Built Binary (Recommended)
+
+1. **Download and extract the latest release**
+
+   ```bash
+   cd ~
+   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-linux-arm64.tar.gz
+   tar -xzf maggpi-linux-arm64.tar.gz
+   cd maggpi-release
+   chmod +x maggpi
+   ```
+
+2. **Run the application**
+
+   ```bash
+   ./maggpi
+   ```
+
+#### Option B: Build from Source
+
 1. **Install Go** (if not already installed)
 
    ```bash
@@ -28,18 +48,12 @@ The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AG
    sudo apt install -y golang-go git
    ```
 
-   Verify Go is installed (requires Go 1.21+):
-   ```bash
-   go version
-   ```
-
-2. **Download and build MaggPi**
+2. **Clone and build**
 
    ```bash
    cd ~
    git clone https://github.com/thinkscotty/maggpi_go.git
    cd maggpi_go
-   go mod tidy
    go build -o maggpi ./cmd/maggpi
    ```
 
@@ -49,26 +63,24 @@ The **Maggpi** name is derived from two things. First, a portmanteau of "Mini AG
    ./maggpi
    ```
 
-   The application will start on port 7979.
+#### After Installation
 
-4. **Access the web interface**
+The application will start on port 7979.
 
-   Find your Pi's IP address:
+1. **Find your Pi's IP address:**
    ```bash
    hostname -I
    ```
 
-   From any device on your local network, open a web browser and navigate to:
+2. **Access the web interface** from any device on your local network:
    ```
    http://<your-pi-ip-address>:7979
    ```
 
-5. **Configure your API key**
-
+3. **Configure your API key:**
    - Click **Settings** in the navigation menu
    - Enter your **Gemini API Key** ([get one free here](https://aistudio.google.com/apikey))
    - Customize refresh intervals and AI instructions as desired
-   - Optionally personalize your dashboard title and subtitle
    - Click **Save Settings**
 
 That's it! MaggPi will automatically start discovering news sources and fetching stories.
@@ -83,7 +95,7 @@ To have MaggPi start automatically on boot, create a systemd service:
    sudo nano /etc/systemd/system/maggpi.service
    ```
 
-2. **Add the following content** (adjust username if not `pi`)
+2. **Add the following content** (adjust paths and username as needed)
 
    ```ini
    [Unit]
@@ -93,14 +105,16 @@ To have MaggPi start automatically on boot, create a systemd service:
    [Service]
    Type=simple
    User=pi
-   WorkingDirectory=/home/pi/maggpi_go
-   ExecStart=/home/pi/maggpi_go/maggpi
+   WorkingDirectory=/home/pi/maggpi-release
+   ExecStart=/home/pi/maggpi-release/maggpi
    Restart=on-failure
    RestartSec=10
 
    [Install]
    WantedBy=multi-user.target
    ```
+
+   **Note:** If you built from source, use `/home/pi/maggpi_go` instead of `/home/pi/maggpi-release`.
 
 3. **Enable and start the service**
 
@@ -211,22 +225,33 @@ To update to the latest version:
    sudo systemctl stop maggpi
    ```
 
-2. **Pull the latest code and rebuild**
+2. **Download and extract the new release**
 
    ```bash
-   cd ~/maggpi_go
-   git pull origin main
-   go mod tidy
-   go build -o maggpi ./cmd/maggpi
+   cd ~
+   wget https://github.com/thinkscotty/maggpi_go/releases/latest/download/maggpi-linux-arm64.tar.gz
+   tar -xzf maggpi-linux-arm64.tar.gz
    ```
 
-3. **Restart the service**
+3. **Replace the binary and web files** (adjust path to your installation)
+
+   ```bash
+   cp ~/maggpi-release/maggpi ~/maggpi-release/maggpi
+   cp -r ~/maggpi-release/web ~/maggpi-release/
+   ```
+
+4. **Restart the service**
 
    ```bash
    sudo systemctl start maggpi
    ```
 
 Your database and settings will be automatically preserved and migrated if needed.
+
+**Alternative:** If you built from source, use `git pull` and rebuild instead:
+```bash
+cd ~/maggpi_go && git pull origin main && go build -o maggpi ./cmd/maggpi
+```
 
 ## Configuration
 
