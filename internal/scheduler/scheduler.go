@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -76,11 +77,22 @@ func (s *Scheduler) UpdateInterval(minutes int) {
 func (s *Scheduler) run() {
 	defer s.wg.Done()
 
+	// Recover from panics - restart the loop if it crashes
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[SCHEDULER PANIC] Recovered from panic in scheduler loop: %v\n%s", r, debug.Stack())
+			// Mark as not running so it can be restarted
+			s.mu.Lock()
+			s.running = false
+			s.mu.Unlock()
+		}
+	}()
+
 	// Initial delay to let the server start
 	time.Sleep(10 * time.Second)
 
-	// Check for topics that need initial sources
-	s.initializeTopics()
+	// Check for topics that need initial sources (with recovery)
+	s.safeInitializeTopics()
 
 	for {
 		select {
@@ -114,7 +126,8 @@ func (s *Scheduler) run() {
 			default:
 			}
 
-			s.refreshTopic(topic.ID)
+			// Use safe wrapper to prevent panics from crashing the scheduler
+			s.safeRefreshTopic(topic.ID)
 
 			// Wait between topic refreshes to be gentle on the Pi
 			time.Sleep(30 * time.Second)
@@ -127,6 +140,34 @@ func (s *Scheduler) run() {
 		case <-time.After(time.Minute):
 		}
 	}
+}
+
+// safeInitializeTopics wraps initializeTopics with panic recovery
+func (s *Scheduler) safeInitializeTopics() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[SCHEDULER PANIC] Recovered from panic in initializeTopics: %v\n%s", r, debug.Stack())
+		}
+	}()
+	s.initializeTopics()
+}
+
+// safeRefreshTopic wraps refreshTopic with panic recovery
+func (s *Scheduler) safeRefreshTopic(topicID int64) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[SCHEDULER PANIC] Recovered from panic in refreshTopic for topic %d: %v\n%s", topicID, r, debug.Stack())
+			// Mark the topic as failed
+			status := &models.RefreshStatus{
+				TopicID:      topicID,
+				NextRefresh:  time.Now().Add(5 * time.Minute),
+				Status:       "failed",
+				ErrorMessage: fmt.Sprintf("panic: %v", r),
+			}
+			s.db.UpdateRefreshStatus(status)
+		}
+	}()
+	s.refreshTopic(topicID)
 }
 
 // initializeTopics discovers sources for topics that have none
@@ -186,6 +227,26 @@ func (s *Scheduler) RefreshTopic(topicID int64) error {
 	return s.refreshTopic(topicID)
 }
 
+// SafeRefreshTopic triggers a topic refresh with panic recovery (for background use)
+func (s *Scheduler) SafeRefreshTopic(topicID int64) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[SCHEDULER PANIC] Recovered from panic in RefreshTopic for topic %d: %v\n%s", topicID, r, debug.Stack())
+			// Mark the topic as failed
+			status := &models.RefreshStatus{
+				TopicID:      topicID,
+				NextRefresh:  time.Now().Add(5 * time.Minute),
+				Status:       "failed",
+				ErrorMessage: fmt.Sprintf("panic: %v", r),
+			}
+			s.db.UpdateRefreshStatus(status)
+		}
+	}()
+	if err := s.refreshTopic(topicID); err != nil {
+		log.Printf("Error refreshing topic %d: %v", topicID, err)
+	}
+}
+
 // refreshTopic performs the actual refresh for a topic
 func (s *Scheduler) refreshTopic(topicID int64) error {
 	topic, err := s.db.GetTopic(topicID)
@@ -211,8 +272,8 @@ func (s *Scheduler) refreshTopic(topicID int64) error {
 
 	log.Printf("Refreshing topic: %s", topic.Name)
 
-	// Get sources for this topic
-	sources, err := s.db.GetSourcesForTopic(topicID)
+	// Get active sources for this topic
+	sources, err := s.db.GetActiveSourcesForTopic(topicID)
 	if err != nil {
 		return s.handleRefreshError(topicID, fmt.Errorf("failed to get sources: %w", err))
 	}
@@ -222,7 +283,7 @@ func (s *Scheduler) refreshTopic(topicID int64) error {
 		if err := s.discoverSources(topicID); err != nil {
 			return s.handleRefreshError(topicID, fmt.Errorf("failed to discover sources: %w", err))
 		}
-		sources, _ = s.db.GetSourcesForTopic(topicID)
+		sources, _ = s.db.GetActiveSourcesForTopic(topicID)
 		if len(sources) == 0 {
 			return s.handleRefreshError(topicID, fmt.Errorf("no sources available for topic"))
 		}
@@ -232,9 +293,41 @@ func (s *Scheduler) refreshTopic(topicID int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	scrapedContent := s.scraper.ScrapeSources(ctx, sources)
+	scrapeResults := s.scraper.ScrapeSources(ctx, sources)
+
+	// Process results and update source statuses
+	var scrapedContent []gemini.ScrapedContent
+	for _, result := range scrapeResults {
+		if result.Error != nil {
+			// Increment failure count
+			newFailureCount := result.Source.FailureCount + 1
+			isActive := newFailureCount < 3 // Disable after 3 failures
+
+			errMsg := result.Error.Error()
+			if len(errMsg) > 500 {
+				errMsg = errMsg[:500] // Truncate long error messages
+			}
+
+			if err := s.db.UpdateSourceStatus(result.Source.ID, isActive, newFailureCount, errMsg); err != nil {
+				log.Printf("Error updating source status: %v", err)
+			}
+
+			if !isActive {
+				log.Printf("Source disabled after %d failures: %s", newFailureCount, result.Source.URL)
+			}
+		} else {
+			// Success - reset failure count
+			if result.Source.FailureCount > 0 {
+				if err := s.db.UpdateSourceStatus(result.Source.ID, true, 0, ""); err != nil {
+					log.Printf("Error resetting source status: %v", err)
+				}
+			}
+			scrapedContent = append(scrapedContent, *result.Content)
+		}
+	}
+
 	if len(scrapedContent) == 0 {
-		return s.handleRefreshError(topicID, fmt.Errorf("failed to scrape any content"))
+		return s.handleRefreshError(topicID, fmt.Errorf("failed to scrape any content from active sources"))
 	}
 
 	// Summarize with Gemini
@@ -302,6 +395,18 @@ func (s *Scheduler) handleRefreshError(topicID int64, err error) error {
 // DiscoverSources triggers source discovery for a topic
 func (s *Scheduler) DiscoverSources(topicID int64) error {
 	return s.discoverSources(topicID)
+}
+
+// SafeDiscoverSources triggers source discovery with panic recovery (for background use)
+func (s *Scheduler) SafeDiscoverSources(topicID int64) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[SCHEDULER PANIC] Recovered from panic in DiscoverSources for topic %d: %v\n%s", topicID, r, debug.Stack())
+		}
+	}()
+	if err := s.discoverSources(topicID); err != nil {
+		log.Printf("Error discovering sources for topic %d: %v", topicID, err)
+	}
 }
 
 // discoverSources uses AI to find sources for a topic

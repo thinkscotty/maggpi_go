@@ -22,6 +22,13 @@ type Scraper struct {
 	redditClient   *reddit.Client
 }
 
+// ScrapeResult represents the result of scraping a source
+type ScrapeResult struct {
+	Source  models.Source
+	Content *gemini.ScrapedContent
+	Error   error
+}
+
 // New creates a new Scraper
 func New() *Scraper {
 	return &Scraper{
@@ -179,9 +186,9 @@ func (s *Scraper) ScrapeSource(ctx context.Context, source models.Source) (*gemi
 	}, nil
 }
 
-// ScrapeSources scrapes multiple sources concurrently
-func (s *Scraper) ScrapeSources(ctx context.Context, sources []models.Source) []gemini.ScrapedContent {
-	var results []gemini.ScrapedContent
+// ScrapeSources scrapes multiple sources concurrently and returns results including errors
+func (s *Scraper) ScrapeSources(ctx context.Context, sources []models.Source) []ScrapeResult {
+	var results []ScrapeResult
 	var mu sync.Mutex
 
 	// Use a semaphore to limit concurrent scrapes
@@ -199,19 +206,37 @@ func (s *Scraper) ScrapeSources(ctx context.Context, sources []models.Source) []
 		go func(src models.Source) {
 			defer wg.Done()
 
+			// Panic recovery to prevent one bad source from crashing the scraper
+			defer func() {
+				if r := recover(); r != nil {
+					mu.Lock()
+					results = append(results, ScrapeResult{
+						Source:  src,
+						Content: nil,
+						Error:   fmt.Errorf("panic while scraping: %v", r),
+					})
+					mu.Unlock()
+					fmt.Printf("Warning: panic while scraping %s: %v\n", src.URL, r)
+				}
+			}()
+
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 
 			content, err := s.ScrapeSource(ctx, src)
+
+			mu.Lock()
+			results = append(results, ScrapeResult{
+				Source:  src,
+				Content: content,
+				Error:   err,
+			})
+			mu.Unlock()
+
 			if err != nil {
 				// Log error but continue with other sources
 				fmt.Printf("Warning: failed to scrape %s: %v\n", src.URL, err)
-				return
 			}
-
-			mu.Lock()
-			results = append(results, *content)
-			mu.Unlock()
 		}(source)
 	}
 

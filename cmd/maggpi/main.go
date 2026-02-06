@@ -100,17 +100,23 @@ func main() {
 	sched.Start()
 
 	// Start server in goroutine
+	serverErrors := make(chan error, 1)
 	go func() {
 		log.Printf("Server listening on http://%s", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			serverErrors <- err
 		}
 	}()
 
-	// Wait for shutdown signal
+	// Wait for shutdown signal or server error
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+
+	select {
+	case err := <-serverErrors:
+		log.Printf("Server error, initiating shutdown: %v", err)
+	case <-quit:
+	}
 
 	log.Println("Shutting down...")
 

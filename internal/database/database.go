@@ -28,8 +28,22 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// Configure connection pool for stability
+	// SQLite works best with limited connections due to file locking
+	conn.SetMaxOpenConns(1)                  // SQLite only supports one writer at a time
+	conn.SetMaxIdleConns(1)                  // Keep one connection ready
+	conn.SetConnMaxLifetime(time.Hour)       // Reconnect after an hour to prevent stale connections
+	conn.SetConnMaxIdleTime(30 * time.Minute) // Close idle connections after 30 minutes
+
 	// Enable foreign keys and WAL mode for better performance
-	if _, err := conn.Exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;"); err != nil {
+	// Also add busy_timeout to handle lock contention gracefully
+	pragmas := `
+		PRAGMA foreign_keys = ON;
+		PRAGMA journal_mode = WAL;
+		PRAGMA busy_timeout = 5000;
+		PRAGMA synchronous = NORMAL;
+	`
+	if _, err := conn.Exec(pragmas); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to set pragmas: %w", err)
 	}
@@ -66,6 +80,9 @@ func (db *DB) migrate() error {
 		url TEXT NOT NULL,
 		name TEXT NOT NULL,
 		is_manual BOOLEAN DEFAULT FALSE,
+		is_active BOOLEAN DEFAULT TRUE,
+		failure_count INTEGER DEFAULT 0,
+		last_error TEXT DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
 	);
@@ -125,6 +142,9 @@ func (db *DB) migrate() error {
 		`ALTER TABLE settings ADD COLUMN dashboard_subtitle TEXT DEFAULT 'Your personalized news feed'`,
 		`ALTER TABLE settings ADD COLUMN story_title_font_size REAL DEFAULT 1.0`,
 		`ALTER TABLE settings ADD COLUMN story_text_font_size REAL DEFAULT 0.9`,
+		`ALTER TABLE sources ADD COLUMN is_active BOOLEAN DEFAULT TRUE`,
+		`ALTER TABLE sources ADD COLUMN failure_count INTEGER DEFAULT 0`,
+		`ALTER TABLE sources ADD COLUMN last_error TEXT DEFAULT ''`,
 	}
 
 	for _, migration := range migrations {
@@ -233,7 +253,7 @@ func (db *DB) ReorderTopics(topicIDs []int64) error {
 // GetSourcesForTopic returns all sources for a topic
 func (db *DB) GetSourcesForTopic(topicID int64) ([]models.Source, error) {
 	rows, err := db.conn.Query(`
-		SELECT id, topic_id, url, name, is_manual, created_at
+		SELECT id, topic_id, url, name, is_manual, is_active, failure_count, last_error, created_at
 		FROM sources WHERE topic_id = ?
 	`, topicID)
 	if err != nil {
@@ -244,7 +264,7 @@ func (db *DB) GetSourcesForTopic(topicID int64) ([]models.Source, error) {
 	var sources []models.Source
 	for rows.Next() {
 		var s models.Source
-		if err := rows.Scan(&s.ID, &s.TopicID, &s.URL, &s.Name, &s.IsManual, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.TopicID, &s.URL, &s.Name, &s.IsManual, &s.IsActive, &s.FailureCount, &s.LastError, &s.CreatedAt); err != nil {
 			return nil, err
 		}
 		sources = append(sources, s)
@@ -255,7 +275,8 @@ func (db *DB) GetSourcesForTopic(topicID int64) ([]models.Source, error) {
 // AddSource adds a new source to a topic
 func (db *DB) AddSource(topicID int64, url, name string, isManual bool) (*models.Source, error) {
 	result, err := db.conn.Exec(`
-		INSERT INTO sources (topic_id, url, name, is_manual) VALUES (?, ?, ?, ?)
+		INSERT INTO sources (topic_id, url, name, is_manual, is_active, failure_count, last_error)
+		VALUES (?, ?, ?, ?, TRUE, 0, '')
 	`, topicID, url, name, isManual)
 	if err != nil {
 		return nil, err
@@ -264,8 +285,9 @@ func (db *DB) AddSource(topicID int64, url, name string, isManual bool) (*models
 	id, _ := result.LastInsertId()
 	var s models.Source
 	err = db.conn.QueryRow(`
-		SELECT id, topic_id, url, name, is_manual, created_at FROM sources WHERE id = ?
-	`, id).Scan(&s.ID, &s.TopicID, &s.URL, &s.Name, &s.IsManual, &s.CreatedAt)
+		SELECT id, topic_id, url, name, is_manual, is_active, failure_count, last_error, created_at
+		FROM sources WHERE id = ?
+	`, id).Scan(&s.ID, &s.TopicID, &s.URL, &s.Name, &s.IsManual, &s.IsActive, &s.FailureCount, &s.LastError, &s.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -282,6 +304,37 @@ func (db *DB) DeleteSource(id int64) error {
 func (db *DB) ClearAISources(topicID int64) error {
 	_, err := db.conn.Exec("DELETE FROM sources WHERE topic_id = ? AND is_manual = FALSE", topicID)
 	return err
+}
+
+// UpdateSourceStatus updates the failure tracking status for a source
+func (db *DB) UpdateSourceStatus(sourceID int64, isActive bool, failureCount int, lastError string) error {
+	_, err := db.conn.Exec(`
+		UPDATE sources SET is_active = ?, failure_count = ?, last_error = ?
+		WHERE id = ?
+	`, isActive, failureCount, lastError, sourceID)
+	return err
+}
+
+// GetActiveSourcesForTopic returns only active sources for a topic
+func (db *DB) GetActiveSourcesForTopic(topicID int64) ([]models.Source, error) {
+	rows, err := db.conn.Query(`
+		SELECT id, topic_id, url, name, is_manual, is_active, failure_count, last_error, created_at
+		FROM sources WHERE topic_id = ? AND is_active = TRUE
+	`, topicID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sources []models.Source
+	for rows.Next() {
+		var s models.Source
+		if err := rows.Scan(&s.ID, &s.TopicID, &s.URL, &s.Name, &s.IsManual, &s.IsActive, &s.FailureCount, &s.LastError, &s.CreatedAt); err != nil {
+			return nil, err
+		}
+		sources = append(sources, s)
+	}
+	return sources, rows.Err()
 }
 
 // Story operations

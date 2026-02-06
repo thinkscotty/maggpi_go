@@ -48,14 +48,23 @@ func New() *Client {
 // FetchPosts fetches and filters posts from a subreddit
 // Only returns text posts (self posts) with >100 words
 func (c *Client) FetchPosts(ctx context.Context, subredditURL string, topicName string) ([]Post, error) {
+	// Check context before starting
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	// Extract subreddit name from URL
 	subreddit, err := extractSubreddit(subredditURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// Rate limit
-	c.waitForRateLimit()
+	// Rate limit (context-aware)
+	if err := c.waitForRateLimitWithContext(ctx); err != nil {
+		return nil, err
+	}
 
 	// Build the JSON API URL
 	apiURL := fmt.Sprintf("https://www.reddit.com/r/%s.json?limit=25", subreddit)
@@ -133,16 +142,23 @@ func (c *Client) FetchPosts(ctx context.Context, subredditURL string, topicName 
 	return posts, nil
 }
 
-// waitForRateLimit ensures we don't exceed Reddit's rate limit
-func (c *Client) waitForRateLimit() {
+// waitForRateLimitWithContext ensures we don't exceed Reddit's rate limit while respecting context
+func (c *Client) waitForRateLimitWithContext(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	elapsed := time.Since(c.lastRequest)
 	if elapsed < c.minInterval {
-		time.Sleep(c.minInterval - elapsed)
+		waitTime := c.minInterval - elapsed
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(waitTime):
+			// Rate limit wait completed
+		}
 	}
 	c.lastRequest = time.Now()
+	return nil
 }
 
 // extractSubreddit extracts the subreddit name from various URL formats

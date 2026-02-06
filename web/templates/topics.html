@@ -65,10 +65,22 @@
                     </div>
                     <ul class="sources-list">
                         {{range .Sources}}
-                        <li class="source-item {{if .IsManual}}manual{{else}}ai{{end}}">
-                            <span class="source-name">{{.Name}}</span>
-                            <a href="{{.URL}}" target="_blank" rel="noopener" class="source-url">{{.URL}}</a>
-                            <span class="source-type">{{if .IsManual}}Manual{{else}}AI{{end}}</span>
+                        <li class="source-item {{if .IsManual}}manual{{else}}ai{{end}} {{if not .IsActive}}failed{{end}}">
+                            <div class="source-info">
+                                <span class="source-name">{{.Name}}</span>
+                                <a href="{{.URL}}" target="_blank" rel="noopener" class="source-url">{{.URL}}</a>
+                                <div class="source-meta">
+                                    <span class="source-type">{{if .IsManual}}Manual{{else}}AI{{end}}</span>
+                                    {{if not .IsActive}}
+                                        <span class="source-status-badge failed">DISABLED</span>
+                                    {{else if gt .FailureCount 0}}
+                                        <span class="source-status-badge warning">⚠ {{.FailureCount}} failure(s)</span>
+                                    {{end}}
+                                </div>
+                                {{if .LastError}}
+                                    <div class="source-error">Error: {{.LastError}}</div>
+                                {{end}}
+                            </div>
                             <button class="btn btn-sm btn-danger" onclick="deleteSource({{$.Topic.ID}}, {{.ID}})">
                                 &times;
                             </button>

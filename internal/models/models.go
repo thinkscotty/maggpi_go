@@ -14,12 +14,15 @@ type Topic struct {
 
 // Source represents a web source for a topic
 type Source struct {
-	ID        int64     `json:"id"`
-	TopicID   int64     `json:"topic_id"`
-	URL       string    `json:"url"`
-	Name      string    `json:"name"`
-	IsManual  bool      `json:"is_manual"` // true if manually added by user
-	CreatedAt time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	TopicID      int64     `json:"topic_id"`
+	URL          string    `json:"url"`
+	Name         string    `json:"name"`
+	IsManual     bool      `json:"is_manual"`      // true if manually added by user
+	IsActive     bool      `json:"is_active"`      // false if source has failed multiple times
+	FailureCount int       `json:"failure_count"`  // consecutive failure count
+	LastError    string    `json:"last_error"`     // last error message
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // Story represents a summarized news story

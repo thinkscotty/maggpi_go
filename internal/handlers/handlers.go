@@ -185,12 +185,8 @@ func (h *Handlers) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Trigger source discovery in background
-	go func() {
-		if err := h.scheduler.DiscoverSources(topic.ID); err != nil {
-			log.Printf("Error discovering sources for new topic: %v", err)
-		}
-	}()
+	// Trigger source discovery in background (with panic recovery)
+	go h.scheduler.SafeDiscoverSources(topic.ID)
 
 	jsonResponse(w, http.StatusCreated, models.APIResponse{Success: true, Data: topic})
 }
@@ -226,13 +222,9 @@ func (h *Handlers) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If description changed, re-discover sources
+	// If description changed, re-discover sources (with panic recovery)
 	if descriptionChanged {
-		go func() {
-			if err := h.scheduler.DiscoverSources(id); err != nil {
-				log.Printf("Error re-discovering sources: %v", err)
-			}
-		}()
+		go h.scheduler.SafeDiscoverSources(id)
 	}
 
 	jsonResponse(w, http.StatusOK, models.APIResponse{Success: true})
@@ -280,11 +272,8 @@ func (h *Handlers) RefreshTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func() {
-		if err := h.scheduler.RefreshTopic(id); err != nil {
-			log.Printf("Error refreshing topic: %v", err)
-		}
-	}()
+	// Run refresh in background with panic recovery
+	go h.scheduler.SafeRefreshTopic(id)
 
 	jsonResponse(w, http.StatusOK, models.APIResponse{Success: true, Data: "Refresh started"})
 }
